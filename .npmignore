@@ -1,0 +1,7 @@
+TestApp/
+tests/
+.kiro/
+.git/
+.DS_Store
+*.log
+node_modules/

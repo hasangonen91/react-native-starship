@@ -1,0 +1,29 @@
+{
+  "name": "react-native-starship",
+  "version": "1.0.0",
+  "description": "Launch your React Native app to any phone over WiFi. No cables, no Expo — just scan and fly.",
+  "main": "src/index.js",
+  "bin": {
+    "starship": "./bin/rn-dev-qr.js"
+  },
+  "scripts": {
+    "test": "node --test tests/unit/*.test.js"
+  },
+  "keywords": [
+    "react-native",
+    "react-native-plugin",
+    "development",
+    "wireless",
+    "apk",
+    "qr-code",
+    "starship",
+    "deploy"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "fast-check": "^3.15.0"
+  }
+}
