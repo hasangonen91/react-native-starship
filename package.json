@@ -1,7 +1,7 @@
 {
   "name": "react-native-starship",
   "version": "1.0.1",
-  "description": "Launch your React Native app to any phone over WiFi. No cables, no Expo — just scan and fly.",
+  "description": "Launch your React Native app to any device over WiFi. No cables, no Expo — just scan and fly.",
   "main": "src/index.js",
   "bin": {
     "starship": "./bin/rn-dev-qr.js"
@@ -12,13 +12,38 @@
   "keywords": [
     "react-native",
     "react-native-plugin",
-    "development",
+    "react-native-cli",
     "wireless",
-    "apk",
+    "wifi",
+    "development",
+    "dev-tools",
     "qr-code",
+    "apk",
+    "android",
+    "ios",
+    "simulator",
+    "emulator",
+    "fast-refresh",
+    "hot-reload",
+    "live-reload",
+    "metro",
+    "bundler",
+    "debug",
+    "deploy",
     "starship",
-    "deploy"
+    "expo-alternative",
+    "no-cable",
+    "over-the-air"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hasangonen91/react-native-starship.git"
+  },
+  "homepage": "https://github.com/hasangonen91/react-native-starship#readme",
+  "bugs": {
+    "url": "https://github.com/hasangonen91/react-native-starship/issues"
+  },
+  "author": "hasangonen91",
   "license": "MIT",
   "dependencies": {
     "qrcode-terminal": "^0.12.0"
