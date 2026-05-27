@@ -1,6 +1,13 @@
 # 🚀 Starship
 
+[![npm version](https://img.shields.io/npm/v/react-native-starship.svg)](https://npmjs.com/package/react-native-starship)
+[![npm downloads](https://img.shields.io/npm/dm/react-native-starship.svg)](https://npmjs.com/package/react-native-starship)
+[![license](https://img.shields.io/npm/l/react-native-starship.svg)](https://github.com/hasangonen91/react-native-starship/blob/main/LICENSE)
+
 Launch your React Native app to any device over WiFi. No cables, no Expo — just scan and fly.
+
+> **The missing wireless development tool for React Native CLI projects.**
+> Like Expo Go, but for bare CLI apps with custom native code.
 
 ## Installation
 
@@ -112,3 +119,11 @@ npx react-native starship
 ## License
 
 MIT
+
+## Author
+
+**Hasan Gönen** — [@hasangonen91](https://www.linkedin.com/in/hasangonen91/)
+
+- LinkedIn: [linkedin.com/in/hasangonen91](https://www.linkedin.com/in/hasangonen91/)
+- GitHub: [github.com/hasangonen91](https://github.com/hasangonen91)
+- npm: [npmjs.com/~hasangonen91](https://www.npmjs.com/~hasangonen91)
