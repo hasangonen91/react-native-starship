@@ -6,6 +6,11 @@
 
 Launch your React Native app to any device over WiFi. No cables, no Expo — just scan and fly.
 
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/hasangonen91/react-native-starship/main/assets/demo.gif" alt="Starship Demo" width="700">
+</p>
+
 > **The missing wireless development tool for React Native CLI projects.**
 > Like Expo Go, but for bare CLI apps with custom native code.
 
