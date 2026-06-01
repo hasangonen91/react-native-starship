@@ -2,6 +2,7 @@
 
 const { execSync, spawn } = require('child_process');
 const readline = require('readline');
+const { listConnectedDevices, displayDevices, adbReverseAllPorts, installOnAllDevices } = require('./device-manager');
 
 const c = {
   reset: '\x1b[0m',
@@ -17,11 +18,12 @@ const c = {
 };
 
 const COMMANDS = [
-  { key: 'a', label: 'Run on Android emulator' },
+  { key: 'a', label: 'Run on Android (all devices)' },
   { key: 'i', label: 'Run on iOS simulator' },
   { key: 'j', label: 'Open debugger' },
   { key: 'r', label: 'Reload app' },
   { key: 'd', label: 'Open Dev Menu' },
+  { key: 'l', label: 'List connected devices' },
   { key: 'q', label: 'Quit' },
 ];
 
@@ -65,6 +67,9 @@ function startInteractive(opts) {
       case 'd':
         openDevMenu();
         break;
+      case 'l':
+        showDevices();
+        break;
       case 'q':
         if (opts.onQuit) opts.onQuit();
         break;
@@ -87,7 +92,60 @@ function printCommands() {
 }
 
 /**
+ * Shows connected devices — both USB (adb) and WiFi (tracked).
+ */
+function showDevices() {
+  const devices = listConnectedDevices();
+  displayDevices(devices);
+
+  // Show WiFi-connected devices from tracker + persisted file
+  const fs = require('fs');
+  const path = require('path');
+  const file = path.resolve('.starship-cache/known-devices.json');
+
+  let wifiDevices = [];
+
+  // Try in-memory tracker first
+  try {
+    const tracker = require('./device-tracker');
+    for (const [ip, info] of tracker.knownDevices) {
+      if (ip.startsWith('adb:')) continue;
+      if (info.model === 'Unknown' || info.model === 'Android Device') continue;
+      wifiDevices.push({ ip, ...info });
+    }
+  } catch {}
+
+  // Fallback: read from disk if in-memory is empty
+  if (wifiDevices.length === 0) {
+    try {
+      if (fs.existsSync(file)) {
+        const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+        for (const [ip, info] of Object.entries(data)) {
+          if (ip.startsWith('adb:')) continue;
+          if (info.model === 'Unknown' || info.model === 'Android Device') continue;
+          wifiDevices.push({ ip, ...info });
+        }
+      }
+    } catch {}
+  }
+
+  if (wifiDevices.length > 0) {
+    console.log('');
+    console.log(`  ${c.bold}WiFi Devices (${wifiDevices.length}):${c.reset}`);
+    console.log(`  ${c.gray}${'─'.repeat(52)}${c.reset}`);
+    for (const dev of wifiDevices) {
+      const icon = dev.platform === 'iOS' ? '🍎' : '🤖';
+      const time = dev.lastSeen ? new Date(dev.lastSeen).toLocaleTimeString() : '';
+      console.log(`  ${icon} ${c.white}${dev.model.padEnd(22)}${c.reset} ${c.dim}${(dev.os || '').padEnd(14)}${c.reset} ${c.cyan}${dev.ip}${c.reset} ${c.dim}${time}${c.reset}`);
+    }
+    console.log(`  ${c.gray}${'─'.repeat(52)}${c.reset}`);
+  }
+  console.log('');
+}
+
+/**
  * Launches Android emulator, waits for boot, installs APK, and launches app.
+ * Supports multi-device: installs on ALL connected devices.
  */
 function runOnAndroid(apkPath) {
   console.log(`  ${c.yellow}▶${c.reset} Running on Android...`);
@@ -97,15 +155,11 @@ function runOnAndroid(apkPath) {
     return;
   }
 
-  // Check if any device is connected
-  let deviceReady = false;
-  try {
-    const output = execSync('adb devices', { encoding: 'utf8', stdio: 'pipe' });
-    const lines = output.split('\n').filter(l => l.includes('\tdevice'));
-    deviceReady = lines.length > 0;
-  } catch {}
+  // Check connected devices
+  let devices = listConnectedDevices();
+  const activeDevices = devices.filter(d => d.type !== 'unauthorized');
 
-  if (!deviceReady) {
+  if (activeDevices.length === 0) {
     // Launch emulator
     try {
       const avdOutput = execSync('emulator -list-avds', { encoding: 'utf8', stdio: 'pipe' }).trim();
@@ -122,31 +176,30 @@ function runOnAndroid(apkPath) {
       execSync('adb wait-for-device', { stdio: 'pipe', timeout: 60000 });
       waitForBoot();
       console.log(`  ${c.green}✔${c.reset} Emulator ready`);
+      devices = listConnectedDevices();
     } catch (err) {
       console.log(`  ${c.red}✖${c.reset} Emulator failed: ${err.message.split('\n')[0]}`);
       return;
     }
   } else {
-    console.log(`  ${c.green}✔${c.reset} Device connected`);
+    console.log(`  ${c.green}✔${c.reset} ${activeDevices.length} device(s) connected`);
   }
 
-  // Reverse port so device can reach Metro on localhost:8081
-  try {
-    execSync('adb reverse tcp:8081 tcp:8081', { stdio: 'pipe' });
-  } catch {}
+  // Reverse ports on all devices
+  adbReverseAllPorts([8081, 8888], devices);
 
-  // Install APK
-  console.log(`  ${c.dim}  Installing APK...${c.reset}`);
-  try {
-    execSync(`adb install -r "${apkPath}"`, { encoding: 'utf8', stdio: 'pipe', timeout: 60000 });
-    console.log(`  ${c.green}✔${c.reset} APK installed`);
-  } catch (err) {
-    const msg = err.stdout || err.stderr || err.message;
-    console.log(`  ${c.red}✖${c.reset} Install failed: ${String(msg).split('\n')[0]}`);
-    return;
+  // Install APK on all devices
+  console.log(`  ${c.dim}  Installing APK on ${devices.filter(d => d.type !== 'unauthorized').length} device(s)...${c.reset}`);
+  const results = installOnAllDevices(apkPath, devices);
+
+  if (results.success.length > 0) {
+    console.log(`  ${c.green}✔${c.reset} APK installed on ${results.success.length} device(s)`);
+  }
+  if (results.failed.length > 0) {
+    console.log(`  ${c.red}✖${c.reset} Install failed on ${results.failed.length} device(s)`);
   }
 
-  // Launch app
+  // Launch app on all devices
   try {
     const fs = require('fs');
     const path = require('path');
@@ -155,8 +208,12 @@ function runOnAndroid(apkPath) {
     const match = content.match(/applicationId\s+["']([^"']+)["']/);
     if (match) {
       const pkg = match[1];
-      execSync(`adb shell monkey -p ${pkg} -c android.intent.category.LAUNCHER 1`, { stdio: 'pipe', timeout: 5000 });
-      console.log(`  ${c.green}✔${c.reset} ${pkg} launched`);
+      for (const deviceId of results.success) {
+        try {
+          execSync(`adb -s ${deviceId} shell monkey -p ${pkg} -c android.intent.category.LAUNCHER 1`, { stdio: 'pipe', timeout: 5000 });
+        } catch {}
+      }
+      console.log(`  ${c.green}✔${c.reset} ${pkg} launched on ${results.success.length} device(s)`);
     }
   } catch {
     console.log(`  ${c.yellow}⚠${c.reset} Installed but could not auto-launch. Open manually.`);

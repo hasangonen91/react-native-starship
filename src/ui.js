@@ -53,7 +53,7 @@ function banner() {
  * @param {string} text - Step description
  */
 function step(num, text) {
-  console.log(`  ${c.bold}${c.blue}[${num}/6]${c.reset} ${text}`);
+  console.log(`  ${c.bold}${c.blue}[${num}]${c.reset} ${text}`);
 }
 
 /**
@@ -191,9 +191,10 @@ function ready(url, watchMode, metroHost) {
   console.log('');
   console.log(`  ${c.bold}First time setup on phone:${c.reset}`);
   console.log(`  ${c.white}1.${c.reset} Scan QR → download & install APK`);
-  console.log(`  ${c.white}2.${c.reset} Open app → shake phone → "Settings"`);
-  console.log(`  ${c.white}3.${c.reset} Set "Debug server host & port" to: ${c.green}${c.bold}${metroHost}${c.reset}`);
-  console.log(`  ${c.white}4.${c.reset} Go back → shake → "Reload" — done!`);
+  console.log(`  ${c.white}2.${c.reset} Open app → ${c.yellow}"Unable to load script" is normal!${c.reset}`);
+  console.log(`  ${c.white}3.${c.reset} Shake phone → "Settings"`);
+  console.log(`  ${c.white}4.${c.reset} Set "Debug server host & port" to: ${c.green}${c.bold}${metroHost}${c.reset}`);
+  console.log(`  ${c.white}5.${c.reset} Go back → shake → "Reload" — done!`);
   console.log('');
   console.log(`  ${c.dim}After first setup, just edit code — Fast Refresh handles the rest.${c.reset}`);
   if (watchMode) {
@@ -235,10 +236,21 @@ function shutdownMsg() {
 
 /**
  * Prints Metro start message.
+ * @param {number} [port]
  */
-function metroStart() {
-  console.log(`  ${c.bold}${c.cyan}▶ Metro bundler starting${c.reset} ${c.dim}(--host 0.0.0.0)${c.reset}`);
+function metroStart(port) {
+  const portStr = port ? `:${port}` : '';
+  console.log(`  ${c.bold}${c.cyan}▶ Metro bundler starting${c.reset} ${c.dim}(--host 0.0.0.0${portStr})${c.reset}`);
   console.log(DIVIDER);
+}
+
+/**
+ * Prints cache hit message.
+ * @param {string} apkPath
+ */
+function cacheHit(apkPath) {
+  console.log(`  ${c.green}⚡${c.reset} APK cache hit — ${c.dim}skipping build${c.reset}`);
+  console.log(`  ${c.dim}  ${apkPath}${c.reset}`);
 }
 
 /**
@@ -267,4 +279,5 @@ module.exports = {
   shutdownMsg,
   metroStart,
   serverStart,
+  cacheHit,
 };

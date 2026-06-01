@@ -1,6 +1,6 @@
 {
   "name": "react-native-starship",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Launch your React Native app to any device over WiFi. No cables, no Expo — just scan and fly.",
   "main": "src/index.js",
   "bin": {
@@ -33,7 +33,11 @@
     "starship",
     "expo-alternative",
     "no-cable",
-    "over-the-air"
+    "over-the-air",
+    "adb",
+    "multi-device",
+    "cache",
+    "build-time"
   ],
   "repository": {
     "type": "git",

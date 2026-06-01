@@ -3,8 +3,9 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { trackDevice, formatDevice } = require('./device-tracker');
 
-const PORT = 8888;
+const DEFAULT_PORT = 8888;
 const HOST = '0.0.0.0';
 
 /**
@@ -298,6 +299,29 @@ function generateDownloadPage(appName, apkFilename, metroHost, hasIcon) {
         setTimeout(function() { el.textContent = original; el.style.color = ''; }, 1500);
       });
     }
+    // Report device info to server
+    (function() {
+      try {
+        var info = { platform: 'Unknown', model: 'Unknown' };
+        if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+          navigator.userAgentData.getHighEntropyValues(['model', 'platform', 'platformVersion'])
+            .then(function(ua) {
+              info.model = ua.model || 'Unknown';
+              info.platform = ua.platform || 'Unknown';
+              info.os = (ua.platform || '') + ' ' + (ua.platformVersion || '');
+              fetch('/device-info', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(info) });
+            });
+        } else {
+          // Fallback: parse from userAgent string
+          var ua = navigator.userAgent;
+          var m = ua.match(/Android\\s+([\\d.]+);\\s*(?:U;\\s*)?([^;)]+?)(?:\\s*Build\\/|\\))/);
+          if (m) { info.model = m[2]; info.platform = 'Android'; info.os = 'Android ' + m[1]; }
+          else if (ua.includes('iPhone')) { info.model = 'iPhone'; info.platform = 'iOS'; }
+          else if (ua.includes('iPad')) { info.model = 'iPad'; info.platform = 'iOS'; }
+          fetch('/device-info', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(info) });
+        }
+      } catch(e) {}
+    })();
   </script>
 </body>
 </html>`;
@@ -324,16 +348,44 @@ function buildUrl(host, port) {
 
 /**
  * Starts an HTTP server serving the APK download page and file.
+ * @param {Object} options
+ * @param {string} options.apkPath - Path to the APK file
+ * @param {string} options.host - Host IP address
+ * @param {string} options.appName - Application name
+ * @param {number} [options.port] - Custom port (default: 8888)
+ * @param {number} [options.metroPort] - Metro port for display (default: 8081)
  */
 function startServer(options) {
   const { apkPath, host, appName } = options;
+  const port = options.port || DEFAULT_PORT;
+  const metroPort = options.metroPort || 8081;
   const apkFilename = path.basename(apkPath);
-  const metroHost = `${host}:8081`;
+  const metroHost = `${host}:${metroPort}`;
   const iconPath = findAppIcon();
+
+  // ANSI colors for terminal notifications
+  const c = {
+    reset: '\x1b[0m',
+    bold: '\x1b[1m',
+    dim: '\x1b[2m',
+    green: '\x1b[32m',
+    cyan: '\x1b[36m',
+    yellow: '\x1b[33m',
+    magenta: '\x1b[35m',
+    white: '\x1b[37m',
+  };
 
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
+      const clientIp = req.socket.remoteAddress?.replace('::ffff:', '') || 'unknown';
+
       if (req.method === 'GET' && req.url === '/') {
+        // Page visit — device is scanning QR
+        const time = new Date().toLocaleTimeString();
+        const device = trackDevice(clientIp, req.headers['user-agent']);
+        const deviceStr = formatDevice(device);
+        console.log(`  ${c.cyan}📲${c.reset} ${c.white}${clientIp}${c.reset} ${deviceStr ? `${c.dim}${deviceStr}${c.reset} ` : ''}opened download page ${c.dim}(${time})${c.reset}`);
+
         const html = generateDownloadPage(appName, apkFilename, metroHost, !!iconPath);
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(html);
@@ -356,12 +408,74 @@ function startServer(options) {
             res.end('Not Found');
             return;
           }
+
+          const sizeMB = (stats.size / (1024 * 1024)).toFixed(1);
+          const time = new Date().toLocaleTimeString();
+          const device = trackDevice(clientIp, req.headers['user-agent']);
+          const deviceStr = formatDevice(device);
+          console.log(`  ${c.green}📦${c.reset} ${c.bold}APK downloading${c.reset} → ${c.white}${clientIp}${c.reset} ${deviceStr ? `${c.dim}${deviceStr}${c.reset} ` : ''}${c.dim}(${sizeMB} MB, ${time})${c.reset}`);
+
           res.writeHead(200, {
             'Content-Type': 'application/vnd.android.package-archive',
             'Content-Disposition': `attachment; filename="${apkFilename}"`,
             'Content-Length': stats.size,
           });
-          fs.createReadStream(apkPath).pipe(res);
+
+          const stream = fs.createReadStream(apkPath);
+          stream.pipe(res);
+
+          res.on('finish', () => {
+            console.log(`  ${c.green}✔${c.reset}  APK delivered to ${c.white}${clientIp}${c.reset} ${deviceStr ? `${c.dim}${deviceStr}${c.reset}` : ''}`);
+            console.log(`  ${c.dim}     Waiting for app to connect to Metro...${c.reset}`);
+          });
+        });
+      } else if (req.method === 'POST' && req.url === '/device-info') {
+        // Receive device info reported by download page JavaScript
+        // Basic validation: limit body size, only accept from local network
+        const contentLength = parseInt(req.headers['content-length'] || '0', 10);
+        if (contentLength > 1024) {
+          res.writeHead(413, { 'Content-Type': 'text/plain' });
+          res.end('Payload too large');
+          return;
+        }
+
+        let body = '';
+        req.on('data', chunk => {
+          body += chunk;
+          if (body.length > 1024) { req.destroy(); return; }
+        });
+        req.on('end', () => {
+          try {
+            const info = JSON.parse(body);
+            // Sanitize input — only allow alphanumeric, spaces, dots, hyphens
+            const sanitize = (s) => typeof s === 'string' ? s.replace(/[^\w\s.\-()]/g, '').substring(0, 50) : '';
+
+            const model = sanitize(info.model);
+            const platform = sanitize(info.platform);
+            const os = sanitize(info.os);
+
+            if (model && model !== 'Unknown' && model.length > 2) {
+              const tracker = require('./device-tracker');
+              tracker.knownDevices.set(clientIp, {
+                model,
+                platform: platform || 'Android',
+                os: (os || platform || 'Android').trim(),
+                firstSeen: Date.now(),
+                lastSeen: Date.now(),
+              });
+              // Persist to disk
+              const fsPersist = require('fs');
+              const pathPersist = require('path');
+              const dir = pathPersist.resolve('.starship-cache');
+              if (!fsPersist.existsSync(dir)) fsPersist.mkdirSync(dir, { recursive: true });
+              const obj = Object.fromEntries(tracker.knownDevices);
+              fsPersist.writeFileSync(pathPersist.resolve('.starship-cache/known-devices.json'), JSON.stringify(obj, null, 2));
+
+              console.log(`  ${c.green}📱${c.reset} Device identified: ${c.bold}${model}${c.reset} ${c.dim}(${(os || platform || '').trim()})${c.reset}`);
+            }
+          } catch {}
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{"ok":true}');
         });
       } else {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -371,13 +485,13 @@ function startServer(options) {
 
     server.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
-        reject(new Error(`Port ${PORT} is already in use. Please free the port and try again.`));
+        reject(new Error(`Port ${port} is already in use. Please free the port and try again.`));
       } else {
         reject(err);
       }
     });
 
-    server.listen(PORT, HOST, () => {
+    server.listen(port, HOST, () => {
       resolve(server);
     });
   });
