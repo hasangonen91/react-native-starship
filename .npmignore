@@ -5,3 +5,5 @@ tests/
 .DS_Store
 *.log
 node_modules/
+.starship-cache/
+assets/
