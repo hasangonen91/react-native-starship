@@ -202,12 +202,28 @@ starship share --password secret123   # protected link
 
 ---
 
+### Expo Dev Client Compatibility
+- [ ] Test with `expo-dev-client` projects (`expo prebuild`)
+- [ ] Handle Expo's dev launcher Metro resolution
+- [ ] Document Expo + Starship hybrid workflow
+- [ ] `starship --expo` flag for Expo-aware mode
+
+### Monorepo Support
+- [ ] Test with yarn workspaces / npm workspaces / pnpm
+- [ ] Test with turborepo and nx
+- [ ] `--root <path>` flag for custom project root
+- [ ] Auto-detect monorepo structure (look for workspace config)
+- [ ] Respect existing `metro.config.js` watchFolders
+- [ ] Document monorepo setup guide
+
+---
+
 ## Not Planned (Out of Scope)
 
 - **Cloud builds** — Use EAS Build, Bitrise, GitHub Actions
 - **App Store submission** — Use EAS Submit, Fastlane, or manual
 - **Push notification service** — Use Firebase, OneSignal, Expo Push
-- **Managed workflow** — Starship is bare RN CLI only
+- **Managed workflow** — Starship is bare RN CLI only (but works with `expo prebuild`)
 - **Analytics** — Use Sentry, Bugsnag, Firebase Analytics
 - **Monetization tools** — Use RevenueCat, Adapty
 - **Backend/API** — Out of scope entirely
