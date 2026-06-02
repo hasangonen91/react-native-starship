@@ -40,6 +40,15 @@
 
 ## v1.2.0 — Build & Distribute 🚧
 
+### Cloud iOS Build (No Mac Required)
+- [ ] `starship build ios --cloud` — Build IPA via GitHub Actions (free macOS runner)
+- [ ] `starship cloud init` — Generate `.github/workflows/ios-build.yml`
+- [ ] Interactive setup wizard (Apple Developer certs → GitHub Secrets)
+- [ ] Auto-upload to TestFlight on success
+- [ ] Download IPA artifact link in terminal
+- [ ] Support for GitHub Actions, GitLab CI, Bitrise runners
+- [ ] Document: "iOS build without owning a Mac" guide
+
 ### Build Commands
 - [ ] `starship build apk` — Debug/Release APK
 - [ ] `starship build aab` — Android App Bundle (Play Store)
