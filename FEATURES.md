@@ -1,6 +1,6 @@
 # Starship — Feature Roadmap
 
-## v1.1.0 (Current) ✅
+## v1.1.1 (Current) ✅
 
 ### Core
 - [x] Zero-config React Native CLI plugin
@@ -38,144 +38,176 @@
 
 ---
 
-## v1.2.0 (Next) 🚧
+## v1.2.0 — Build & Distribute 🚧
 
-### Build Variants
-- [ ] `starship build apk` — Generate signed/unsigned debug APK
-- [ ] `starship build aab` — Generate Android App Bundle (Play Store format)
-- [ ] `starship build ipa` — Generate IPA for TestFlight/Ad-hoc distribution
-- [ ] Build output directory (`--output ./builds/`)
-- [ ] Keystore configuration for signed builds
-- [ ] Build variant selection (`--variant release/debug/staging`)
+### Build Commands
+- [ ] `starship build apk` — Debug/Release APK
+- [ ] `starship build aab` — Android App Bundle (Play Store)
+- [ ] `starship build ipa` — IPA (TestFlight/Ad-hoc)
+- [ ] `--output <path>` — Custom output directory
+- [ ] `--variant <name>` — Build variant (debug/release/staging)
+- [ ] Keystore configuration (interactive setup wizard)
+- [ ] Auto-increment version code/build number
+- [ ] Build size report (before/after comparison)
 
-### Remote Access (Outside Local Network)
-- [ ] Tunnel mode (`--tunnel`) — expose Metro + HTTP server via secure tunnel
-- [ ] Auto-generate public URL (no ngrok account needed)
-- [ ] QR code with tunnel URL (works from anywhere)
-- [ ] Tunnel authentication (token-based access)
-- [ ] Tunnel status indicator in terminal
-- [ ] Fallback to local mode if tunnel fails
+### Remote Access (Tunnel)
+- [ ] `--tunnel` flag — Expose over internet (no same WiFi needed)
+- [ ] Auto-generate secure public URL
+- [ ] Token-based authentication for tunnel access
+- [ ] QR code with tunnel URL
+- [ ] Works across different networks (office ↔ home ↔ client)
+- [ ] Tunnel status + bandwidth indicator in terminal
+- [ ] Auto-fallback to local mode on tunnel failure
+
+### Preview Sharing
+- [ ] `starship share` — Generate shareable link for QA/PM
+- [ ] Expiring links (1h, 24h, 7d)
+- [ ] Download count tracking
+- [ ] Password-protected downloads
+- [ ] Slack/Teams webhook notification on download
 
 ---
 
-## v1.3.0 (Planned) 📋
+## v1.3.0 — Developer Experience 📋
 
-### Expo-Parity Features
-- [ ] OTA updates — push JS bundle updates without rebuild
-- [ ] Shake menu replacement — custom dev menu overlay
-- [ ] Error overlay — better crash reporting in terminal
-- [ ] Environment variables — `.env` support in builds
-- [ ] Build profiles — named configurations (dev/staging/prod)
-- [ ] Asset bundling — optimize images/fonts during build
-- [ ] EAS-like build commands — `starship build --profile production`
+### OTA Updates (Over-The-Air)
+- [ ] `starship update` — Push JS bundle without rebuild
+- [ ] Channel-based updates (dev/staging/production)
+- [ ] Rollback support (`starship update --rollback`)
+- [ ] Update size shown before push
+- [ ] Device receives update on next app open
+- [ ] Version pinning (update only specific app versions)
 
-### Developer Experience
-- [ ] `starship init` — setup wizard for new projects
-- [ ] `starship doctor` — diagnose common issues (SDK, JDK, Xcode, etc.)
-- [ ] `starship clean` — clear all caches + build artifacts
-- [ ] `starship devices` — standalone device listing command
-- [ ] `starship log` — stream device logs (adb logcat filtered)
-- [ ] Config file (`.starshiprc`) — persist options per project
+### Environment & Configuration
+- [ ] `.env` support — auto-inject env vars into build
+- [ ] `.starshiprc` — project-level config file
+- [ ] Build profiles (dev/staging/prod in one config)
+- [ ] Per-profile env variables
+- [ ] Secret management (encrypted local vault)
 
-### Advanced
-- [ ] Flipper integration — auto-connect debugger
-- [ ] Performance monitoring — bundle size tracking
-- [ ] Multiple app variant support (flavors/schemes)
-- [ ] CI/CD mode (`--ci`) — non-interactive, exit codes
+### Diagnostics & Tooling
+- [ ] `starship doctor` — Check environment (SDK, JDK, Xcode, adb)
+- [ ] `starship clean` — Clear all caches + build artifacts
+- [ ] `starship devices` — Standalone device list command
+- [ ] `starship log` — Stream device logs (filtered logcat/console)
+- [ ] `starship log --crash` — Show only crash logs
+- [ ] `starship info` — Show project config, versions, paths
+
+---
+
+## v1.4.0 — Team & CI 📋
+
+### Team Collaboration
+- [ ] QR code on web dashboard (team members scan from browser)
+- [ ] Device registration (track who tested on what)
+- [ ] Build history web view
+- [ ] Comment/feedback from device (shake → send screenshot + note)
+- [ ] Tester groups (send different builds to different teams)
+
+### CI/CD Integration
+- [ ] `--ci` flag — Non-interactive mode, proper exit codes
+- [ ] JSON output mode (`--json`) for pipeline parsing
+- [ ] GitHub Actions template (`starship-action`)
+- [ ] GitLab CI template
+- [ ] Bitrise step
+- [ ] Build artifact upload (S3, GCS, Azure Blob)
+- [ ] Webhook on build complete (Slack, Discord, Teams)
+
+### Performance Monitoring
+- [ ] Bundle size tracking per build
+- [ ] Bundle size diff on PR (via CI)
+- [ ] Startup time measurement on device
+- [ ] Build speed regression alerts
+- [ ] Native module size impact report
+
+---
+
+## v1.5.0 — Advanced 📋
+
+### Smart Builds
+- [ ] Incremental native builds (only rebuild changed modules)
+- [ ] Parallel iOS + Android builds with shared Metro
+- [ ] Build artifact sharing between team members (download teammate's APK)
+- [ ] Gradle daemon keep-alive between builds
+- [ ] Prebuild cache for node_modules native deps
+
+### Developer Ergonomics
+- [ ] `starship init` — Setup wizard for new projects
+- [ ] `starship eject` — Remove Starship cleanly from project
 - [ ] Plugin system — extend with custom commands
+- [ ] Custom keyboard shortcuts config
+- [ ] Terminal dashboard mode (split pane: Metro + device logs)
+- [ ] Push notification testing tool (send test push from terminal)
+
+### Platform Extensions
+- [ ] macOS app support (React Native macOS)
+- [ ] Windows app support (React Native Windows)
+- [ ] Web build support (`react-native-web` → serve)
+- [ ] TV app support (tvOS, Android TV)
 
 ---
 
-## Feature Comparison: Starship vs Expo
+## Feature Comparison: Starship vs Expo vs Others
 
-| Feature | Expo | Starship | Status |
-|---------|------|----------|--------|
-| Wireless Android install | ✅ Expo Go | ✅ QR + APK | Done |
-| Wireless iOS install | ✅ Expo Go | ❌ Apple restriction | N/A |
-| iOS simulator | ✅ | ✅ | Done |
-| Custom native code | ❌ (needs dev client) | ✅ | Done |
-| Fast Refresh | ✅ | ✅ | Done |
-| Zero config | ✅ | ✅ | Done |
-| OTA updates | ✅ EAS Update | ⬜ | v1.3 |
-| Build APK | ✅ EAS Build | ⬜ | v1.2 |
-| Build AAB | ✅ EAS Build | ⬜ | v1.2 |
-| Build IPA | ✅ EAS Build | ⬜ | v1.2 |
-| Tunnel (remote access) | ✅ `--tunnel` | ⬜ | v1.2 |
-| Error overlay | ✅ | ⬜ | v1.3 |
-| Environment variables | ✅ | ⬜ | v1.3 |
-| Build profiles | ✅ eas.json | ⬜ | v1.3 |
-| Doctor/diagnostics | ✅ `expo doctor` | ⬜ | v1.3 |
-| Cloud builds | ✅ EAS Build | ❌ | Not planned |
-| App Store submit | ✅ EAS Submit | ❌ | Not planned |
-| Push notifications | ✅ Expo Push | ❌ | Not planned |
-| Managed workflow | ✅ | ❌ | Not planned |
+| Feature | Expo | Starship | Fastlane | RN CLI |
+|---------|------|----------|----------|--------|
+| Wireless install (QR) | ✅ | ✅ | ❌ | ❌ |
+| Custom native code | ❌* | ✅ | ✅ | ✅ |
+| Zero config | ✅ | ✅ | ❌ | ❌ |
+| Build APK/AAB | ✅ (cloud) | ⬜ v1.2 | ✅ | ✅ |
+| Build IPA | ✅ (cloud) | ⬜ v1.2 | ✅ | ✅ |
+| OTA updates | ✅ | ⬜ v1.3 | ❌ | ❌ |
+| Tunnel (remote) | ✅ | ⬜ v1.2 | ❌ | ❌ |
+| Multi-device | ❌ | ✅ | ❌ | ❌ |
+| Build cache | ❌ | ✅ | ❌ | ❌ |
+| Device info | ❌ | ✅ | ❌ | ❌ |
+| Preview sharing | ✅ | ⬜ v1.2 | ✅ | ❌ |
+| Env variables | ✅ | ⬜ v1.3 | ✅ | ❌ |
+| Build profiles | ✅ | ⬜ v1.3 | ✅ | ❌ |
+| Doctor/diagnostics | ✅ | ⬜ v1.3 | ❌ | ✅ |
+| CI/CD mode | ✅ | ⬜ v1.4 | ✅ | ❌ |
+| Bundle size tracking | ❌ | ⬜ v1.4 | ❌ | ❌ |
+| Local builds (free) | ❌** | ✅ | ✅ | ✅ |
+| No account needed | ❌ | ✅ | ✅ | ✅ |
+
+\* Expo requires Dev Client for native modules
+\** EAS Build requires paid plan for priority; local builds possible with `expo prebuild`
 
 ---
 
-## v1.2.0 Implementation Details
+## Implementation Priority (v1.2.0)
 
-### `starship build apk`
-
-```bash
+### Phase 1: Build Commands (Week 1)
+```
 starship build apk                    # debug APK
-starship build apk --release          # release APK (needs keystore)
-starship build apk --output ./dist    # custom output path
+starship build apk --release          # signed release APK
+starship build apk --output ./dist    # custom output
+starship build aab                    # Play Store bundle
+starship build ipa                    # iOS archive
+starship build ipa --export ad-hoc    # Ad-hoc distribution
 ```
 
-- Runs `./gradlew assembleDebug` or `assembleRelease`
-- Copies APK to output directory with timestamp
-- Shows file size + build time
-- Opens output folder
-
-### `starship build aab`
-
-```bash
-starship build aab                    # release AAB for Play Store
-starship build aab --output ./dist
+### Phase 2: Tunnel (Week 1-2)
+```
+starship --tunnel                     # local + tunnel
+starship --tunnel-only                # tunnel only (no local)
 ```
 
-- Runs `./gradlew bundleRelease`
-- Requires signing config in `build.gradle`
-- Validates AAB with `bundletool` if available
-- Shows upload-ready path
-
-### `starship build ipa`
-
-```bash
-starship build ipa                    # archive + export IPA
-starship build ipa --export-method ad-hoc
-starship build ipa --export-method app-store
+### Phase 3: Preview Sharing (Week 2)
 ```
-
-- Runs `xcodebuild archive` + `xcodebuild -exportArchive`
-- Requires valid provisioning profile + signing identity
-- Export methods: `development`, `ad-hoc`, `app-store`, `enterprise`
-- Shows IPA path + size
-
-### `starship --tunnel` (Remote Access)
-
-```bash
-starship --tunnel                     # start with tunnel
-starship --tunnel --tunnel-port 443   # custom tunnel port
+starship share                        # generate link
+starship share --expires 24h          # expiring link
+starship share --password secret123   # protected link
 ```
-
-- Uses `localtunnel` or built-in TCP tunnel
-- Generates random subdomain: `https://abc123.starship.dev`
-- Secures with auto-generated token (shown in terminal)
-- QR code points to tunnel URL instead of local IP
-- Works across different networks (office → home, etc.)
-- Metro + HTTP server both tunneled
-- Token required for APK download (prevents unauthorized access)
 
 ---
 
 ## Not Planned (Out of Scope)
 
-These features are intentionally excluded:
-
-- **Cloud builds** — Use EAS Build, Bitrise, or GitHub Actions
-- **App Store submission** — Use EAS Submit or Fastlane
-- **Push notifications** — Use Firebase, OneSignal, or Expo Push
-- **Managed workflow** — Starship is for bare RN CLI projects only
-- **Code signing management** — Use Fastlane Match or manual setup
-- **Analytics/crash reporting** — Use Sentry, Bugsnag, or Firebase
+- **Cloud builds** — Use EAS Build, Bitrise, GitHub Actions
+- **App Store submission** — Use EAS Submit, Fastlane, or manual
+- **Push notification service** — Use Firebase, OneSignal, Expo Push
+- **Managed workflow** — Starship is bare RN CLI only
+- **Analytics** — Use Sentry, Bugsnag, Firebase Analytics
+- **Monetization tools** — Use RevenueCat, Adapty
+- **Backend/API** — Out of scope entirely
