@@ -3,12 +3,42 @@
 /**
  * Parses CLI arguments for the starship command.
  * @param {string[]} argv - process.argv or equivalent
- * @returns {{options: Object, unknown: string[]}}
+ * @returns {{command: string, options: Object, unknown: string[]}}
  */
 function parseArgs(argv) {
   const args = argv.slice(2);
-  const options = { watch: false, help: false, version: false, ios: false, port: 8081, serverPort: 8888, noCache: false };
+  const options = {
+    watch: false, help: false, version: false, ios: false,
+    port: 8081, serverPort: 8888, noCache: false, tunnel: false,
+    // Build options
+    release: false, output: null, export: 'development',
+  };
   const unknown = [];
+  let command = 'launch'; // default command
+
+  // Check for subcommand
+  if (args[0] && !args[0].startsWith('-')) {
+    if (args[0] === 'build') {
+      command = 'build';
+      // Next arg is the build target
+      if (args[1] && !args[1].startsWith('-')) {
+        options.buildTarget = args[1]; // apk, aab, ipa
+        args.splice(0, 2);
+      } else {
+        options.buildTarget = 'apk'; // default
+        args.splice(0, 1);
+      }
+    } else if (args[0] === 'doctor') {
+      command = 'doctor';
+      args.splice(0, 1);
+    } else if (args[0] === 'clean') {
+      command = 'clean';
+      args.splice(0, 1);
+    } else if (args[0] === 'devices') {
+      command = 'devices';
+      args.splice(0, 1);
+    }
+  }
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -32,6 +62,29 @@ function parseArgs(argv) {
       case '--no-cache':
         options.noCache = true;
         break;
+      case '--tunnel':
+        options.tunnel = true;
+        break;
+      case '--release':
+        options.release = true;
+        break;
+      case '--output':
+      case '-o': {
+        const next = args[i + 1];
+        if (next && !next.startsWith('-')) {
+          options.output = next;
+          i++;
+        }
+        break;
+      }
+      case '--export': {
+        const next = args[i + 1];
+        if (next && !next.startsWith('-')) {
+          options.export = next;
+          i++;
+        }
+        break;
+      }
       case '--port':
       case '-p': {
         const next = args[i + 1];
@@ -64,7 +117,6 @@ function parseArgs(argv) {
         break;
       }
       default:
-        // Check for --port=XXXX format
         if (arg.startsWith('--port=')) {
           const val = parseInt(arg.split('=')[1], 10);
           if (!isNaN(val) && val > 0 && val < 65536) {
@@ -79,6 +131,10 @@ function parseArgs(argv) {
           } else {
             unknown.push(arg);
           }
+        } else if (arg.startsWith('--output=')) {
+          options.output = arg.split('=')[1];
+        } else if (arg.startsWith('--export=')) {
+          options.export = arg.split('=')[1];
         } else {
           unknown.push(arg);
         }
@@ -86,7 +142,7 @@ function parseArgs(argv) {
     }
   }
 
-  return { options, unknown };
+  return { command, options, unknown };
 }
 
 module.exports = { parseArgs };

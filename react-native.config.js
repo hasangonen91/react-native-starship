@@ -15,50 +15,44 @@ module.exports = {
           port: options.port || 8081,
           serverPort: options.serverPort || 8888,
           noCache: options.noCache || false,
+          tunnel: options.tunnel || false,
         });
       },
       options: [
-        {
-          name: '--watch',
-          description: 'Watch for native source changes and rebuild automatically',
-          default: false,
-        },
-        {
-          name: '--ios',
-          description: 'Build for iOS simulator instead of Android',
-          default: false,
-        },
-        {
-          name: '--port <number>',
-          description: 'Metro bundler port (default: 8081)',
-        },
-        {
-          name: '--server-port <number>',
-          description: 'HTTP server port for APK download (default: 8888)',
-        },
-        {
-          name: '--no-cache',
-          description: 'Skip APK cache and force a fresh build',
-          default: false,
-        },
+        { name: '--watch', description: 'Watch for native source changes and rebuild', default: false },
+        { name: '--ios', description: 'Build for iOS simulator', default: false },
+        { name: '--port <number>', description: 'Metro bundler port (default: 8081)' },
+        { name: '--server-port <number>', description: 'HTTP server port (default: 8888)' },
+        { name: '--no-cache', description: 'Skip APK cache, force rebuild', default: false },
+        { name: '--tunnel', description: 'Expose over internet (tunnel mode)', default: false },
       ],
-      examples: [
-        {
-          desc: 'Launch Starship — build APK and serve over WiFi',
-          cmd: 'npx react-native starship',
-        },
-        {
-          desc: 'Launch with custom Metro port',
-          cmd: 'npx react-native starship --port 8082',
-        },
-        {
-          desc: 'Launch with watch mode for native changes',
-          cmd: 'npx react-native starship --watch',
-        },
-        {
-          desc: 'Force rebuild without cache',
-          cmd: 'npx react-native starship --no-cache',
-        },
+    },
+    {
+      name: 'starship-build',
+      description: 'Build APK, AAB, or IPA',
+      func: async (argv, config, options) => {
+        const { buildApkCommand, buildAabCommand, buildIpaCommand } = require(path.join(__dirname, 'src', 'build-command.js'));
+        const target = argv[0] || 'apk';
+
+        switch (target) {
+          case 'apk':
+            await buildApkCommand({ release: options.release, output: options.output });
+            break;
+          case 'aab':
+            await buildAabCommand({ output: options.output });
+            break;
+          case 'ipa':
+            await buildIpaCommand({ export: options.export, output: options.output });
+            break;
+          default:
+            console.error(`Unknown target: ${target}. Use: apk, aab, ipa`);
+            process.exit(1);
+        }
+      },
+      options: [
+        { name: '--release', description: 'Build release variant', default: false },
+        { name: '--output <path>', description: 'Output directory' },
+        { name: '--export <method>', description: 'IPA export method (development, ad-hoc, app-store)' },
       ],
     },
   ],

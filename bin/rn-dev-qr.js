@@ -14,7 +14,6 @@ function printHelp() {
     cyan: '\x1b[36m',
     green: '\x1b[32m',
     yellow: '\x1b[33m',
-    gray: '\x1b[90m',
   };
 
   console.log('');
@@ -22,38 +21,31 @@ function printHelp() {
   console.log(`  ${c.dim}Launch your React Native app to any phone over WiFi${c.reset}`);
   console.log('');
   console.log(`  ${c.bold}USAGE${c.reset}`);
-  console.log(`    ${c.green}$${c.reset} starship ${c.dim}[options]${c.reset}`);
-  console.log(`    ${c.green}$${c.reset} npx react-native starship ${c.dim}[options]${c.reset}`);
+  console.log(`    ${c.green}$${c.reset} starship ${c.dim}[options]${c.reset}             Launch (default)`);
+  console.log(`    ${c.green}$${c.reset} starship build apk ${c.dim}[options]${c.reset}   Build debug APK`);
+  console.log(`    ${c.green}$${c.reset} starship build aab              Build AAB for Play Store`);
+  console.log(`    ${c.green}$${c.reset} starship build ipa ${c.dim}[options]${c.reset}   Build IPA for iOS`);
   console.log('');
-  console.log(`  ${c.bold}OPTIONS${c.reset}`);
+  console.log(`  ${c.bold}LAUNCH OPTIONS${c.reset}`);
   console.log(`    ${c.yellow}--port, -p <port>${c.reset}   Metro bundler port ${c.dim}(default: 8081)${c.reset}`);
   console.log(`    ${c.yellow}--server-port <port>${c.reset} HTTP server port ${c.dim}(default: 8888)${c.reset}`);
-  console.log(`    ${c.yellow}--ios, -i${c.reset}           Build for iOS simulator instead of Android`);
-  console.log(`    ${c.yellow}--watch, -w${c.reset}         Watch native source changes and auto-rebuild`);
-  console.log(`    ${c.yellow}--no-cache${c.reset}          Skip APK cache, force rebuild`);
-  console.log(`    ${c.yellow}--help, -h${c.reset}          Show this help message`);
-  console.log(`    ${c.yellow}--version, -v${c.reset}       Show version number`);
+  console.log(`    ${c.yellow}--ios, -i${c.reset}           Build for iOS simulator`);
+  console.log(`    ${c.yellow}--watch, -w${c.reset}         Watch native source changes`);
+  console.log(`    ${c.yellow}--no-cache${c.reset}          Force rebuild`);
+  console.log(`    ${c.yellow}--tunnel${c.reset}            Expose over internet`);
   console.log('');
-  console.log(`  ${c.bold}WHAT IT DOES${c.reset}`);
-  console.log(`    ${c.dim}1.${c.reset} Detects connected devices (physical + emulators)`);
-  console.log(`    ${c.dim}2.${c.reset} Auto-runs adb reverse on all devices`);
-  console.log(`    ${c.dim}3.${c.reset} Builds debug APK (cached if source unchanged)`);
-  console.log(`    ${c.dim}4.${c.reset} Installs APK on all connected devices`);
-  console.log(`    ${c.dim}5.${c.reset} Serves APK on http://<your-ip>:<port>`);
-  console.log(`    ${c.dim}6.${c.reset} Shows QR code — scan to install APK on phone`);
-  console.log(`    ${c.dim}7.${c.reset} Starts Metro bundler with network access`);
-  console.log(`    ${c.dim}8.${c.reset} Tracks build times for performance monitoring`);
-  console.log('');
-  console.log(`  ${c.bold}PREREQUISITES${c.reset}`);
-  console.log(`    ${c.dim}•${c.reset} React Native CLI project with android/ directory`);
-  console.log(`    ${c.dim}•${c.reset} Android SDK + JDK installed`);
-  console.log(`    ${c.dim}•${c.reset} Phone and computer on same WiFi network`);
+  console.log(`  ${c.bold}BUILD OPTIONS${c.reset}`);
+  console.log(`    ${c.yellow}--release${c.reset}           Release variant (APK)`);
+  console.log(`    ${c.yellow}--output, -o <dir>${c.reset}  Output directory`);
+  console.log(`    ${c.yellow}--export <method>${c.reset}   IPA export: development, ad-hoc, app-store`);
   console.log('');
   console.log(`  ${c.bold}EXAMPLES${c.reset}`);
-  console.log(`    ${c.green}$${c.reset} starship                    ${c.dim}# default, port 8081${c.reset}`);
-  console.log(`    ${c.green}$${c.reset} starship --port 8082        ${c.dim}# custom Metro port${c.reset}`);
-  console.log(`    ${c.green}$${c.reset} starship --watch --no-cache ${c.dim}# watch + force rebuild${c.reset}`);
-  console.log(`    ${c.green}$${c.reset} starship --ios              ${c.dim}# iOS simulator${c.reset}`);
+  console.log(`    ${c.green}$${c.reset} starship                         ${c.dim}# wireless deploy${c.reset}`);
+  console.log(`    ${c.green}$${c.reset} starship build apk               ${c.dim}# debug APK${c.reset}`);
+  console.log(`    ${c.green}$${c.reset} starship build apk --release     ${c.dim}# release APK${c.reset}`);
+  console.log(`    ${c.green}$${c.reset} starship build aab               ${c.dim}# Play Store bundle${c.reset}`);
+  console.log(`    ${c.green}$${c.reset} starship build ipa --export ad-hoc  ${c.dim}# Ad-hoc IPA${c.reset}`);
+  console.log(`    ${c.green}$${c.reset} starship build ipa -o ./dist     ${c.dim}# IPA to custom dir${c.reset}`);
   console.log('');
 }
 
@@ -62,16 +54,7 @@ function printVersion() {
 }
 
 function main() {
-  const { options, unknown } = parseArgs(process.argv);
-
-  if (unknown.length > 0) {
-    const c = { reset: '\x1b[0m', red: '\x1b[31m', dim: '\x1b[2m' };
-    console.error('');
-    console.error(`  ${c.red}Error:${c.reset} Unknown flag "${unknown[0]}"`);
-    console.error(`  ${c.dim}Run "starship --help" to see available options${c.reset}`);
-    console.error('');
-    process.exit(1);
-  }
+  const { command, options, unknown } = parseArgs(process.argv);
 
   if (options.help) {
     printHelp();
@@ -83,23 +66,92 @@ function main() {
     process.exit(0);
   }
 
-  const { run } = require(path.join(__dirname, '..', 'src', 'index.js'));
-  run({
-    watch: options.watch,
-    ios: options.ios,
-    port: options.port,
-    serverPort: options.serverPort,
-    noCache: options.noCache,
-  }).catch((err) => {
+  if (unknown.length > 0 && command === 'launch') {
     const c = { reset: '\x1b[0m', red: '\x1b[31m', dim: '\x1b[2m' };
     console.error('');
-    console.error(`  ${c.red}Error:${c.reset} ${err.message}`);
+    console.error(`  ${c.red}Error:${c.reset} Unknown flag "${unknown[0]}"`);
+    console.error(`  ${c.dim}Run "starship --help" to see available options${c.reset}`);
     console.error('');
     process.exit(1);
-  });
+  }
+
+  const c = { reset: '\x1b[0m', red: '\x1b[31m', dim: '\x1b[2m' };
+
+  switch (command) {
+    case 'launch': {
+      const { run } = require(path.join(__dirname, '..', 'src', 'index.js'));
+      run({
+        watch: options.watch,
+        ios: options.ios,
+        port: options.port,
+        serverPort: options.serverPort,
+        noCache: options.noCache,
+        tunnel: options.tunnel,
+      }).catch((err) => {
+        console.error(`\n  ${c.red}Error:${c.reset} ${err.message}\n`);
+        process.exit(1);
+      });
+      break;
+    }
+
+    case 'build': {
+      const { buildApkCommand, buildAabCommand, buildIpaCommand } = require(path.join(__dirname, '..', 'src', 'build-command.js'));
+
+      let buildFn;
+      switch (options.buildTarget) {
+        case 'apk':
+          buildFn = () => buildApkCommand({ release: options.release, output: options.output });
+          break;
+        case 'aab':
+          buildFn = () => buildAabCommand({ output: options.output });
+          break;
+        case 'ipa':
+          buildFn = () => buildIpaCommand({ export: options.export, output: options.output });
+          break;
+        default:
+          console.error(`\n  ${c.red}Error:${c.reset} Unknown build target "${options.buildTarget}"`);
+          console.error(`  ${c.dim}Available: apk, aab, ipa${c.reset}\n`);
+          process.exit(1);
+      }
+
+      buildFn().catch((err) => {
+        console.error(`\n  ${c.red}Error:${c.reset} ${err.message}\n`);
+        process.exit(1);
+      });
+      break;
+    }
+
+    case 'doctor': {
+      console.log('\n  starship doctor — coming soon\n');
+      break;
+    }
+
+    case 'clean': {
+      const fs = require('fs');
+      const cachePath = path.resolve('.starship-cache');
+      if (fs.existsSync(cachePath)) {
+        fs.rmSync(cachePath, { recursive: true, force: true });
+        console.log('\n  ✔ Cache cleared\n');
+      } else {
+        console.log('\n  Nothing to clean\n');
+      }
+      break;
+    }
+
+    case 'devices': {
+      const { listConnectedDevices, displayDevices } = require(path.join(__dirname, '..', 'src', 'device-manager.js'));
+      const devices = listConnectedDevices();
+      displayDevices(devices);
+      break;
+    }
+
+    default:
+      printHelp();
+      break;
+  }
 }
 
 // Export for testing
-module.exports = { parseArgs, printHelp, printVersion };
+module.exports = { parseArgs };
 
 main();
