@@ -57,6 +57,29 @@ That's it. One command:
 3. Phone scans → installs → runs
 4. Fast Refresh over WiFi
 
+## Build Commands (NEW in v1.2)
+
+```bash
+starship build apk                # Debug APK
+starship build apk --release      # Signed release APK
+starship build aab                # Android App Bundle (Play Store)
+starship build ipa                # iOS IPA
+starship build ipa --export ad-hoc -o ./dist
+```
+
+| Command | Output | Use case |
+|---------|--------|----------|
+| `build apk` | Debug APK | Testing |
+| `build apk --release` | Signed APK | Direct distribution |
+| `build aab` | App Bundle | Google Play Store |
+| `build ipa` | IPA archive | TestFlight / Ad-hoc |
+
+Also:
+```bash
+starship clean                    # Clear build cache
+starship devices                  # List connected devices
+```
+
 ## What happens
 
 ### Android (fully wireless — no USB ever)
