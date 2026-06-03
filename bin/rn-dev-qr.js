@@ -147,7 +147,11 @@ function main() {
     }
 
     case 'doctor': {
-      console.log('\n  starship doctor — coming soon\n');
+      const { runDoctor } = require(path.join(__dirname, '..', 'src', 'doctor.js'));
+      runDoctor().catch((err) => {
+        console.error(`\n  ${c.red}Error:${c.reset} ${err.message}\n`);
+        process.exit(1);
+      });
       break;
     }
 
