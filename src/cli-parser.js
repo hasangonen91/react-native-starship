@@ -28,6 +28,9 @@ function parseArgs(argv) {
         options.buildTarget = 'apk'; // default
         args.splice(0, 1);
       }
+    } else if (args[0] === 'cloud' && args[1] === 'init') {
+      command = 'cloud-init';
+      args.splice(0, 2);
     } else if (args[0] === 'doctor') {
       command = 'doctor';
       args.splice(0, 1);
@@ -67,6 +70,12 @@ function parseArgs(argv) {
         break;
       case '--release':
         options.release = true;
+        break;
+      case '--cloud':
+        options.cloud = true;
+        break;
+      case '--submit':
+        options.submit = true;
         break;
       case '--output':
       case '-o': {

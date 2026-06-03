@@ -25,6 +25,10 @@ function printHelp() {
   console.log(`    ${c.green}$${c.reset} starship build apk ${c.dim}[options]${c.reset}   Build debug APK`);
   console.log(`    ${c.green}$${c.reset} starship build aab              Build AAB for Play Store`);
   console.log(`    ${c.green}$${c.reset} starship build ipa ${c.dim}[options]${c.reset}   Build IPA for iOS`);
+  console.log(`    ${c.green}$${c.reset} starship build ipa --cloud      Build IPA via GitHub Actions`);
+  console.log(`    ${c.green}$${c.reset} starship cloud init             Setup cloud iOS builds`);
+  console.log(`    ${c.green}$${c.reset} starship clean                  Clear cache`);
+  console.log(`    ${c.green}$${c.reset} starship devices                List devices`);
   console.log('');
   console.log(`  ${c.bold}LAUNCH OPTIONS${c.reset}`);
   console.log(`    ${c.yellow}--port, -p <port>${c.reset}   Metro bundler port ${c.dim}(default: 8081)${c.reset}`);
@@ -38,6 +42,8 @@ function printHelp() {
   console.log(`    ${c.yellow}--release${c.reset}           Release variant (APK)`);
   console.log(`    ${c.yellow}--output, -o <dir>${c.reset}  Output directory`);
   console.log(`    ${c.yellow}--export <method>${c.reset}   IPA export: development, ad-hoc, app-store`);
+  console.log(`    ${c.yellow}--cloud${c.reset}             Build via GitHub Actions (no Mac needed)`);
+  console.log(`    ${c.yellow}--submit${c.reset}            Upload to App Store Connect`);
   console.log('');
   console.log(`  ${c.bold}EXAMPLES${c.reset}`);
   console.log(`    ${c.green}$${c.reset} starship                         ${c.dim}# wireless deploy${c.reset}`);
@@ -97,6 +103,16 @@ function main() {
     case 'build': {
       const { buildApkCommand, buildAabCommand, buildIpaCommand } = require(path.join(__dirname, '..', 'src', 'build-command.js'));
 
+      // Cloud build for iOS
+      if (options.cloud && options.buildTarget === 'ipa') {
+        const { cloudBuild } = require(path.join(__dirname, '..', 'src', 'cloud-build.js'));
+        cloudBuild({ export: options.export, submit: options.submit }).catch((err) => {
+          console.error(`\n  ${c.red}Error:${c.reset} ${err.message}\n`);
+          process.exit(1);
+        });
+        break;
+      }
+
       let buildFn;
       switch (options.buildTarget) {
         case 'apk':
@@ -115,6 +131,15 @@ function main() {
       }
 
       buildFn().catch((err) => {
+        console.error(`\n  ${c.red}Error:${c.reset} ${err.message}\n`);
+        process.exit(1);
+      });
+      break;
+    }
+
+    case 'cloud-init': {
+      const { cloudInit } = require(path.join(__dirname, '..', 'src', 'cloud-init.js'));
+      cloudInit().catch((err) => {
         console.error(`\n  ${c.red}Error:${c.reset} ${err.message}\n`);
         process.exit(1);
       });
