@@ -49,6 +49,20 @@
 - [ ] Support for GitHub Actions, GitLab CI, Bitrise runners
 - [ ] Document: "iOS build without owning a Mac" guide
 
+### iOS Wireless Deploy (QR Install on iPhone)
+- [ ] `starship ios setup` — One-time Apple ID login + 2FA
+- [ ] Auto-generate development certificate via Apple API
+- [ ] UDID collection via Safari config profile (no USB needed)
+- [ ] Auto-create provisioning profile (cert + UDID + bundle ID)
+- [ ] IPA build + code sign (local Mac or cloud)
+- [ ] HTTPS server with self-signed cert (auto trust prompt)
+- [ ] `itms-services://` manifest plist generation
+- [ ] QR code for iOS install (same flow as Android)
+- [ ] Auto-renew expired certificates (7-day free / 1-year paid)
+- [ ] Store signing credentials in `.starship/ios-signing/`
+- [ ] EU sideloading support (iOS 17.4+ DMA direct install)
+- [ ] SideStore source integration for sideload users
+
 ### Build Commands
 - [ ] `starship build apk` — Debug/Release APK
 - [ ] `starship build aab` — Android App Bundle (Play Store)
