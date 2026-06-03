@@ -110,6 +110,38 @@ Apple does **not** allow wireless app installation without a developer account. 
 
 **Workaround:** Connect iPhone via USB once, install with Xcode, disconnect — Fast Refresh works over WiFi from then on.
 
+## Cloud iOS Build (No Mac Needed) — NEW in v1.3
+
+Build and deploy iOS apps from **Windows or Linux**. No Mac required.
+
+```bash
+# One-time setup (5 min)
+starship cloud init
+
+# Build IPA via GitHub Actions (free)
+starship build ipa --cloud
+
+# Submit to App Store
+starship build ipa --cloud --export app-store --submit
+```
+
+**How it works:**
+1. `cloud init` → uploads Apple certs to GitHub Secrets + creates workflow
+2. `--cloud` → triggers GitHub Actions macOS runner (free for public repos)
+3. IPA is built, downloaded, and served via QR code
+4. iPhone scans QR → installs → done
+
+**Requirements:**
+- GitHub account (free)
+- Apple Developer account ($99/year)
+- No Mac, no Xcode, no macOS knowledge needed
+
+**Gate system** — each step unlocks the next:
+```
+cloud init  →  build ipa --cloud  →  --submit
+   [1]              [2]                 [3]
+```
+
 ## Interactive Shortcuts
 
 | Key | Action |
