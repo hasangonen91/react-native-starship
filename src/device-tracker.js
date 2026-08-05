@@ -99,9 +99,12 @@ function parseDevice(ua) {
 
 /**
  * Tries to get the device model from adb (first connected physical device).
+ * Result is cached in memory to avoid repeated adb calls on every HTTP request.
  * @returns {string|null}
  */
+let _cachedAdbModel = undefined; // undefined = not yet fetched, null = fetched but not found
 function getAdbModel() {
+  if (_cachedAdbModel !== undefined) return _cachedAdbModel;
   try {
     const { execSync } = require('child_process');
     // Get all devices with model info
@@ -113,7 +116,8 @@ function getAdbModel() {
       if (line.startsWith('emulator-')) continue;
       const modelMatch = line.match(/model:(\S+)/);
       if (modelMatch) {
-        return modelMatch[1].replace(/_/g, ' ');
+        _cachedAdbModel = modelMatch[1].replace(/_/g, ' ');
+        return _cachedAdbModel;
       }
     }
 
@@ -122,10 +126,14 @@ function getAdbModel() {
       if (line.startsWith('emulator-')) {
         const id = line.split(/\s+/)[0];
         const model = execSync(`adb -s ${id} shell getprop ro.product.model`, { encoding: 'utf8', stdio: 'pipe', timeout: 3000 }).trim();
-        if (model) return model.replace(/_/g, ' ');
+        if (model) {
+          _cachedAdbModel = model.replace(/_/g, ' ');
+          return _cachedAdbModel;
+        }
       }
     }
   } catch {}
+  _cachedAdbModel = null;
   return null;
 }
 
@@ -186,8 +194,8 @@ function seedFromAdb() {
   } catch {}
 }
 
-// Seed on module load
-seedFromAdb();
+// Seed on module load — run async so it doesn't block startup
+setImmediate(() => seedFromAdb());
 
 /**
  * Registers a device that accessed the server.

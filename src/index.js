@@ -122,10 +122,11 @@ async function run(options) {
     const devices = listConnectedDevices();
     displayDevices(devices);
 
-    // Automatic adb reverse for Metro and HTTP server ports
+    // Automatic adb reverse for Metro and HTTP server ports — run async, don't block
     if (devices.length > 0) {
       const portsToReverse = [metroPort, serverPort];
-      adbReverseAllPorts(portsToReverse, devices);
+      // Fire and forget — adbReverseAllPorts is already async internally
+      setImmediate(() => adbReverseAllPorts(portsToReverse, devices));
     }
   }
 
@@ -243,34 +244,7 @@ async function run(options) {
   // Wait for builds
   if (buildPromises.length > 0) await Promise.all(buildPromises);
 
-  // Multi-device APK install
-  if (apkPath && hasAndroid) {
-    const devices = listConnectedDevices();
-    const activeDevices = devices.filter(d => d.type !== 'unauthorized');
-
-    if (activeDevices.length > 0) {
-      stepNum++;
-      ui.step(stepNum, `Installing APK on ${activeDevices.length} device(s)...`);
-      const results = installOnAllDevices(apkPath, devices);
-      if (results.success.length > 0) {
-        ui.success(`APK installed on ${results.success.length} device(s)`);
-      }
-      if (results.failed.length > 0) {
-        ui.warn(`Install failed on ${results.failed.length} device(s)`);
-      }
-
-      // Auto-set debug server host on USB-connected devices
-      if (applicationId && results.success.length > 0) {
-        const metroHost = `${ip}:${metroPort}`;
-        const hostResults = setDebugHostOnDevices(applicationId, metroHost, devices);
-        if (hostResults.success.length > 0) {
-          ui.success(`Debug host ${metroHost} set on ${hostResults.success.length} device(s)`);
-        }
-      }
-    }
-  }
-
-  // Serve Android APK
+  // Serve Android APK — start server immediately after build, before install
   if (apkPath) {
     stepNum++;
     ui.step(stepNum, 'Starting HTTP server...');
@@ -283,18 +257,7 @@ async function run(options) {
     }
   }
 
-  // Install iOS on simulator
-  if (iosAppPath && iosSimulator) {
-    const { installOnSimulator } = require('./ios-builder');
-    try {
-      installOnSimulator(iosAppPath, iosSimulator.udid, iosBundleId);
-      ui.success(`iOS launched on ${iosSimulator.name}`);
-    } catch (err) {
-      ui.warn(`iOS install failed: ${err.message}`);
-    }
-  }
-
-  // QR code for Android
+  // Show QR code immediately — don't wait for APK install or iOS
   if (apkPath && shutdown.httpServer) {
     stepNum++;
     ui.step(stepNum, 'Generating QR code...');
@@ -302,6 +265,53 @@ async function run(options) {
     ui.qrSection(downloadUrl);
     displayQR(downloadUrl);
     ui.ready(downloadUrl, options.watch, `${ip}:${metroPort}`);
+  }
+
+  // Start Metro early — in parallel with install tasks below
+  ui.metroStart();
+  const metro = startMetro(metroPort);
+  shutdown.metroProcess = metro;
+
+  // Multi-device APK install — run async, QR is already visible
+  if (apkPath && hasAndroid) {
+    const devices = listConnectedDevices();
+    const activeDevices = devices.filter(d => d.type !== 'unauthorized');
+
+    if (activeDevices.length > 0) {
+      // Fire-and-forget: install in background, print results when done
+      Promise.resolve().then(async () => {
+        ui.step(stepNum + 1, `Installing APK on ${activeDevices.length} device(s)...`);
+        const results = installOnAllDevices(apkPath, devices);
+        if (results.success.length > 0) {
+          ui.success(`APK installed on ${results.success.length} device(s)`);
+        }
+        if (results.failed.length > 0) {
+          ui.warn(`Install failed on ${results.failed.length} device(s)`);
+        }
+
+        // Auto-set debug server host on USB-connected devices
+        if (applicationId && results.success.length > 0) {
+          const metroHost = `${ip}:${metroPort}`;
+          const hostResults = setDebugHostOnDevices(applicationId, metroHost, devices);
+          if (hostResults.success.length > 0) {
+            ui.success(`Debug host ${metroHost} set on ${hostResults.success.length} device(s)`);
+          }
+        }
+      }).catch(() => {});
+    }
+  }
+
+  // Install iOS on simulator — also async after QR is shown
+  if (iosAppPath && iosSimulator) {
+    Promise.resolve().then(() => {
+      const { installOnSimulator } = require('./ios-builder');
+      try {
+        installOnSimulator(iosAppPath, iosSimulator.udid, iosBundleId);
+        ui.success(`iOS launched on ${iosSimulator.name}`);
+      } catch (err) {
+        ui.warn(`iOS install failed: ${err.message}`);
+      }
+    }).catch(() => {});
   } else if (!apkPath && iosAppPath) {
     console.log('');
     console.log(`  ${ui.c.bold}${ui.c.green}🚀 Launched!${ui.c.reset}`);
@@ -309,11 +319,6 @@ async function run(options) {
     console.log(`  ${ui.c.dim}Press Ctrl+C to stop${ui.c.reset}`);
     console.log('');
   }
-
-  // Metro (shared)
-  ui.metroStart();
-  const metro = startMetro(metroPort);
-  shutdown.metroProcess = metro;
 
   metro.on('exit', (code) => {
     if (code !== null && code !== 0) {

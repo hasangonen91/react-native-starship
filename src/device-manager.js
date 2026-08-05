@@ -115,7 +115,7 @@ function adbReverseAll(port, devices) {
 }
 
 /**
- * Runs adb reverse for multiple ports on all connected devices.
+ * Runs adb reverse for multiple ports on all connected devices in parallel.
  * @param {number[]} ports - Array of ports to reverse
  * @param {Device[]} [devices] - Optional device list
  */
@@ -125,15 +125,36 @@ function adbReverseAllPorts(ports, devices) {
 
   if (activeDevices.length === 0) return;
 
-  for (const port of ports) {
-    const results = adbReverseAll(port, activeDevices);
-    if (results.success.length > 0) {
-      ui.success(`adb reverse tcp:${port} → ${results.success.length} device(s)`);
-    }
-    if (results.failed.length > 0) {
-      ui.warn(`adb reverse tcp:${port} failed on: ${results.failed.join(', ')}`);
+  // Run all adb reverse commands in parallel using child_process.exec
+  const { exec } = require('child_process');
+  const tasks = [];
+
+  for (const device of activeDevices) {
+    for (const port of ports) {
+      tasks.push(new Promise((resolve) => {
+        exec(`adb -s ${device.id} reverse tcp:${port} tcp:${port}`, { timeout: 5000 }, (err) => {
+          resolve({ deviceId: device.id, port, ok: !err });
+        });
+      }));
     }
   }
+
+  // Fire and forget — results logged when all done
+  Promise.all(tasks).then((results) => {
+    const byPort = {};
+    for (const r of results) {
+      if (!byPort[r.port]) byPort[r.port] = { success: [], failed: [] };
+      (r.ok ? byPort[r.port].success : byPort[r.port].failed).push(r.deviceId);
+    }
+    for (const [port, res] of Object.entries(byPort)) {
+      if (res.success.length > 0) {
+        ui.success(`adb reverse tcp:${port} → ${res.success.length} device(s)`);
+      }
+      if (res.failed.length > 0) {
+        ui.warn(`adb reverse tcp:${port} failed on: ${res.failed.join(', ')}`);
+      }
+    }
+  }).catch(() => {});
 }
 
 /**

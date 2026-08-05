@@ -64,20 +64,31 @@ function computeSourceHash() {
 
 /**
  * Recursively collects file paths from a directory.
+ * Skips binary assets and generated files for faster hashing.
  * @param {string} dir
  * @param {string[]} result
  */
 function collectFiles(dir, result) {
+  // Extensions worth hashing — source and config only
+  const SOURCE_EXTS = new Set([
+    '.java', '.kt', '.xml', '.gradle', '.properties',
+    '.json', '.js', '.ts', '.tsx', '.jsx',
+  ]);
+
   try {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        // Skip build directories
-        if (entry.name === 'build' || entry.name === '.gradle') continue;
+        // Skip build and generated directories
+        if (entry.name === 'build' || entry.name === '.gradle' ||
+            entry.name === 'generated' || entry.name === '__pycache__') continue;
         collectFiles(fullPath, result);
       } else if (entry.isFile()) {
-        result.push(fullPath);
+        const ext = path.extname(entry.name).toLowerCase();
+        if (SOURCE_EXTS.has(ext)) {
+          result.push(fullPath);
+        }
       }
     }
   } catch {
