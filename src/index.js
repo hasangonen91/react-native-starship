@@ -198,6 +198,7 @@ async function run(options) {
     const {
       validateIosProject, getScheme, getBundleId,
       listSimulators, bootSimulator, buildIos,
+      checkIosCache, saveIosCache, computeIosSourceHash,
     } = require('./ios-builder');
 
     stepNum++;
@@ -218,21 +219,41 @@ async function run(options) {
         }
         ui.success(`Simulator: ${iosSimulator.name}`);
 
-        stepNum++;
-        ui.step(stepNum, `Building iOS for ${iosSimulator.name}...`);
-        const timer = createBuildTimer('ios');
-        timer.start();
-        buildPromises.push(
-          buildIos({ bundlerHost: ip, simulator: iosSimulator.name }).then((result) => {
-            iosAppPath = result;
-            timer.stop();
-            timer.save();
-            ui.success(`iOS built in ${timer.formatted()}`);
-            timer.report();
-          }).catch((err) => {
-            ui.warn(`iOS build failed: ${err.message.split('\n')[0]}`);
-          })
-        );
+        // Check iOS cache first
+        if (!options.noCache) {
+          const iosCache = checkIosCache();
+          if (iosCache.hit) {
+            iosAppPath = iosCache.appPath;
+            ui.success(`iOS cache hit — skipping build`);
+          }
+        }
+
+        if (!iosAppPath) {
+          stepNum++;
+          ui.step(stepNum, `Building iOS for ${iosSimulator.name}...`);
+          const timer = createBuildTimer('ios');
+          timer.start();
+          buildPromises.push(
+            buildIos({ bundlerHost: ip, simulator: iosSimulator.name }).then((result) => {
+              iosAppPath = result;
+              timer.stop();
+              timer.save();
+              ui.success(`iOS built in ${timer.formatted()}`);
+              timer.report();
+
+              // Save to cache
+              if (!options.noCache) {
+                saveIosCache({
+                  appPath: result,
+                  sourceHash: computeIosSourceHash(),
+                  buildTimeMs: timer.duration(),
+                });
+              }
+            }).catch((err) => {
+              ui.warn(`iOS build failed: ${err.message.split('\n')[0]}`);
+            })
+          );
+        }
       } else {
         ui.warn('No iOS simulators — skipping');
       }
