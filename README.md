@@ -142,7 +142,19 @@ cloud init  →  build ipa --cloud  →  --submit
    [1]              [2]                 [3]
 ```
 
-## Interactive Shortcuts
+## Performance Tips
+
+### iOS — faster builds with ccache
+
+React Native's C++ dependencies (Hermes, Folly, ReactCommon) take the most time to compile. [ccache](https://ccache.dev/) caches these compilation results — after the first build, subsequent builds skip recompiling unchanged native code entirely.
+
+```bash
+brew install ccache
+```
+
+Starship detects ccache automatically. No extra config needed — just install it and your next iOS build will populate the cache. From then on, clean builds that were taking 10+ minutes can drop to under a minute.
+
+
 
 | Key | Action |
 |-----|--------|
