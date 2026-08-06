@@ -104,13 +104,25 @@ async function buildApk({ bundlerHost, metroPort, serverPort }) {
     );
   }
 
+  // Apply speed optimizations to gradle.properties (one-time, idempotent)
+  ensureGradleOptimizations();
+
   // --- Inject StarshipDevHostInitializer ---
   const injectedFiles = injectDevHostInitializer(devHost, sPort);
 
+  // Detect device ABI to build only the needed architecture (~75% faster)
+  const targetAbi = detectDeviceAbi();
+
   const androidDir = path.resolve('android');
 
+  // Build args: single ABI if detected, otherwise full build
+  const gradleArgs = ['assembleDebug', '--console=plain', '-q'];
+  if (targetAbi) {
+    gradleArgs.push(`-PreactNativeArchitectures=${targetAbi}`);
+  }
+
   return new Promise((resolve, reject) => {
-    const child = spawn('./gradlew', ['assembleDebug', '--console=plain', '-q'], {
+    const child = spawn('./gradlew', gradleArgs, {
       cwd: androidDir,
       stdio: 'pipe',
       env: {
@@ -379,3 +391,83 @@ function cleanupInjectedFiles(injectedFiles) {
 }
 
 module.exports = { validateProject, parseApplicationId, isValidApplicationId, buildApk };
+
+/**
+ * Detects the ABI of the first connected Android device/emulator.
+ * Allows building only the needed ABI — ~75% faster than building all 4.
+ * @returns {string|null} ABI string like 'arm64-v8a' or null if detection fails
+ */
+function detectDeviceAbi() {
+  try {
+    const { execSync } = require('child_process');
+    const output = execSync('adb devices', { encoding: 'utf8', stdio: 'pipe', timeout: 3000 });
+    const lines = output.split('\n').filter(l => l.trim() && !l.startsWith('List'));
+    if (lines.length === 0) return null;
+
+    // Get the first active device/emulator
+    const activeLine = lines.find(l => l.includes('\tdevice'));
+    if (!activeLine) return null;
+    const deviceId = activeLine.split(/\s+/)[0];
+
+    const abi = execSync(
+      `adb -s ${deviceId} shell getprop ro.product.cpu.abi`,
+      { encoding: 'utf8', stdio: 'pipe', timeout: 3000 }
+    ).trim();
+
+    // Validate it's a known RN ABI
+    const known = new Set(['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86']);
+    return known.has(abi) ? abi : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Ensures android/gradle.properties has performance optimizations set.
+ * Safe to call multiple times — idempotent, only appends missing entries.
+ */
+function ensureGradleOptimizations() {
+  const propsPath = path.resolve('android', 'gradle.properties');
+  if (!fs.existsSync(propsPath)) return;
+
+  let content = '';
+  try {
+    content = fs.readFileSync(propsPath, 'utf8');
+  } catch {
+    return;
+  }
+
+  const optimizations = [
+    // Gradle Daemon — keeps JVM warm between builds (default on, but be explicit)
+    { key: 'org.gradle.daemon', value: 'true' },
+    // Parallel project execution
+    { key: 'org.gradle.parallel', value: 'true' },
+    // Gradle build cache — reuses task outputs across builds
+    { key: 'org.gradle.caching', value: 'true' },
+    // JVM memory — prevents GC pauses during large builds
+    { key: 'org.gradle.jvmargs', value: '-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError' },
+    // Configuration cache — skip config phase on unchanged builds (RN 0.79+)
+    { key: 'org.gradle.configuration-cache', value: 'true' },
+    { key: 'org.gradle.configuration-cache.problems', value: 'warn' },
+  ];
+
+  const lines = content.split('\n');
+  let changed = false;
+
+  for (const opt of optimizations) {
+    // Check if key already exists (with any value)
+    const exists = lines.some(l => l.trim().startsWith(`${opt.key}=`) || l.trim().startsWith(`${opt.key} =`));
+    if (!exists) {
+      lines.push(`${opt.key}=${opt.value}`);
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    try {
+      fs.writeFileSync(propsPath, lines.join('\n'));
+    } catch {
+      // Non-fatal — build will still work without these flags
+    }
+  }
+}

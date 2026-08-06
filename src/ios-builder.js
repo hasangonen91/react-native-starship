@@ -234,8 +234,57 @@ function saveIosCache({ appPath, sourceHash, buildTimeMs }) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Checks if ccache is installed and enables it for the build environment.
+ * ccache wraps the C++ compilers and caches results — huge speedup on repeated builds.
+ * @returns {Object} env additions if ccache is available
+ */
+function getCcacheEnv() {
+  try {
+    const { execSync } = require('child_process');
+    // Check if ccache is installed
+    const ccachePath = execSync('which ccache', { encoding: 'utf8', stdio: 'pipe', timeout: 2000 }).trim();
+    if (!ccachePath) return {};
+
+    // Set ccache as the compiler wrapper for Clang/GCC
+    return {
+      CC: `${ccachePath} clang`,
+      CXX: `${ccachePath} clang++`,
+      CCACHE_SLOPPINESS: 'clang_index_store,ivfsoverlay,include_file_ctime,include_file_mtime',
+      CCACHE_FILECLONE: 'true',
+      CCACHE_DEPEND: 'true',
+      CCACHE_INODECACHE: 'true',
+      // Max cache size: 10GB
+      CCACHE_MAXSIZE: '10G',
+    };
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Enables ccache in ios/Podfile by uncommenting the ccache_enabled line.
+ * React Native ships with ccache support built-in, just needs to be enabled.
+ */
+function enableCcacheInPodfile() {
+  const podfilePath = path.resolve('ios', 'Podfile');
+  if (!fs.existsSync(podfilePath)) return;
+
+  try {
+    let content = fs.readFileSync(podfilePath, 'utf8');
+    // RN Podfile has this line commented out — uncomment it
+    if (content.includes('#ccache_enabled = true') || content.includes('# ccache_enabled = true')) {
+      content = content
+        .replace(/#\s*ccache_enabled\s*=\s*true/g, 'ccache_enabled = true');
+      fs.writeFileSync(podfilePath, content);
+    }
+  } catch {
+    // Non-fatal
+  }
+}
+
+/**
  * Builds the iOS app for simulator.
- * Uses xcodebuild with parallelized jobs and incremental build support.
+ * Uses xcodebuild with parallelized jobs, incremental build support, and ccache.
  * @param {Object} options
  * @param {string} options.bundlerHost - Metro host IP
  * @param {string} options.simulator - Simulator name (e.g., "iPhone 16")
@@ -249,8 +298,14 @@ async function buildIos({ bundlerHost, simulator }) {
   // Derived data path for finding the .app
   const derivedData = path.resolve('ios', 'build');
 
+  // Enable ccache in Podfile if available (idempotent)
+  enableCcacheInPodfile();
+
   // Number of CPU cores for parallel compilation
   const cpus = require('os').cpus().length;
+
+  // ccache env vars — empty object if ccache not installed
+  const ccacheEnv = getCcacheEnv();
 
   return new Promise((resolve, reject) => {
     const args = [
@@ -271,10 +326,15 @@ async function buildIos({ bundlerHost, simulator }) {
       stdio: 'pipe',
       env: {
         ...process.env,
+        ...ccacheEnv,
         RCT_METRO_HOST: bundlerHost,
         RCT_METRO_PORT: '8081',
-        // Tell Xcode to use all available parallelism
+        // Disable Xcode index store writing — not needed for dev builds
         COMPILER_INDEX_STORE_ENABLE: 'NO',
+        // Disable dSYM generation for debug simulator builds — saves time
+        DEBUG_INFORMATION_FORMAT: 'dwarf',
+        // Swift: incremental compilation (not whole-module) for debug
+        SWIFT_COMPILATION_MODE: 'incremental',
       },
     });
 
@@ -369,4 +429,5 @@ module.exports = {
   checkIosCache,
   saveIosCache,
   computeIosSourceHash,
+  enableCcacheInPodfile,
 };
