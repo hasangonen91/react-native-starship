@@ -4,7 +4,7 @@
   "description": "Launch your React Native app to any device over WiFi. No cables, no Expo — just scan and fly.",
   "main": "src/index.js",
   "bin": {
-    "starship": "./bin/rn-dev-qr.js"
+    "starship": "bin/rn-dev-qr.js"
   },
   "scripts": {
     "test": "node --test tests/unit/*.test.js"
@@ -41,7 +41,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/hasangonen91/react-native-starship.git"
+    "url": "git+https://github.com/hasangonen91/react-native-starship.git"
   },
   "homepage": "https://github.com/hasangonen91/react-native-starship#readme",
   "bugs": {
