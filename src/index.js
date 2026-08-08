@@ -2,15 +2,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const { validateProject, parseApplicationId, buildApk } = require('./apk-builder');
-const { getLocalIP } = require('./network');
-const { startServer, buildUrl } = require('./server');
-const { displayQR } = require('./qr');
-const { startMetro } = require('./metro');
-const { listConnectedDevices, displayDevices, adbReverseAllPorts, installOnAllDevices, setDebugHostOnDevices } = require('./device-manager');
-const { checkCache, saveCache } = require('./apk-cache');
-const { createBuildTimer } = require('./build-timer');
-const ui = require('./ui');
+
+// Heavy modules are lazy-required inside run() to avoid startup overhead.
+// Only lightweight built-ins are required at module level.
 
 const shutdown = {
   metroProcess: null,
@@ -20,6 +14,7 @@ const shutdown = {
 };
 
 function gracefulShutdown() {
+  const ui = require('./ui');
   ui.shutdownMsg();
   if (shutdown.metroProcess) shutdown.metroProcess.kill('SIGTERM');
   if (shutdown.buildProcess) shutdown.buildProcess.kill('SIGTERM');
@@ -36,6 +31,9 @@ function gracefulShutdown() {
 }
 
 function startWatchMode(options) {
+  const { buildApk } = require('./apk-builder');
+  const { createBuildTimer } = require('./build-timer');
+  const ui = require('./ui');
   const watchDir = path.resolve('android', 'app', 'src');
   const validExtensions = ['.java', '.kt', '.xml'];
   let isBuilding = false;
@@ -89,6 +87,18 @@ function startWatchMode(options) {
  * @param {boolean} options.noCache - Skip APK cache
  */
 async function run(options) {
+  // Lazy-require all heavy modules here — not at module load time.
+  // This keeps startup instant when used via `npx react-native starship`.
+  const { validateProject, parseApplicationId, buildApk } = require('./apk-builder');
+  const { getLocalIP } = require('./network');
+  const { startServer, buildUrl } = require('./server');
+  const { displayQR } = require('./qr');
+  const { startMetro } = require('./metro');
+  const { listConnectedDevices, displayDevices, adbReverseAllPorts, installOnAllDevices, setDebugHostOnDevices } = require('./device-manager');
+  const { checkCache, saveCache } = require('./apk-cache');
+  const { createBuildTimer } = require('./build-timer');
+  const ui = require('./ui');
+
   process.on('SIGINT', gracefulShutdown);
 
   const metroPort = options.port || 8081;
