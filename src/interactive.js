@@ -331,25 +331,116 @@ function runOnIosSimulator() {
 }
 
 /**
- * Opens debugger / DevTools.
+ * Opens React Native DevTools.
+ *
+ * Strategy (in order of preference):
+ * 1. POST to Metro's /open-debugger — modern RN 0.73+ approach, opens DevTools directly
+ * 2. GET /json from Metro Inspector, find first connected app, open devtoolsFrontendUrl
+ * 3. Fall back to Dev Menu shortcut on device/simulator
  */
 function openDebugger(ip) {
-  console.log(`  ${c.yellow}▶${c.reset} Opening debugger...`);
+  const http = require('http');
+  const metroPort = 8081;
 
+  console.log(`  ${c.yellow}▶${c.reset} Opening DevTools...`);
+
+  // Step 1: Try Metro's /open-debugger endpoint (RN 0.73+)
+  // This is the same thing Metro CLI does when you press 'j'
+  const postReq = http.request({
+    hostname: 'localhost',
+    port: metroPort,
+    path: '/open-debugger',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': 0 },
+    timeout: 3000,
+  }, (res) => {
+    res.resume();
+    if (res.statusCode === 200 || res.statusCode === 204) {
+      console.log(`  ${c.green}✔${c.reset} DevTools opened`);
+      return;
+    }
+    // Non-200: fall back to inspector JSON approach
+    openViaInspectorJson(metroPort);
+  });
+
+  postReq.on('error', () => {
+    // Metro not reachable or endpoint not supported — try inspector
+    openViaInspectorJson(metroPort);
+  });
+
+  postReq.on('timeout', () => {
+    postReq.destroy();
+    openViaInspectorJson(metroPort);
+  });
+
+  postReq.end();
+}
+
+/**
+ * Queries Metro's /json endpoint to find connected apps and open DevTools URL.
+ * Falls back to Dev Menu shortcut if no apps are connected.
+ */
+function openViaInspectorJson(metroPort) {
+  const http = require('http');
+
+  const req = http.get(`http://localhost:${metroPort}/json`, { timeout: 3000 }, (res) => {
+    let body = '';
+    res.on('data', chunk => { body += chunk; });
+    res.on('end', () => {
+      try {
+        const targets = JSON.parse(body);
+        // Find React Native app targets (not Metro internal ones)
+        const appTarget = targets.find(t =>
+          t.type === 'node' ||
+          (t.title && (t.title.includes('React') || t.title.includes('index'))) ||
+          t.devtoolsFrontendUrl
+        );
+
+        if (appTarget && appTarget.devtoolsFrontendUrl) {
+          const devToolsUrl = appTarget.devtoolsFrontendUrl.startsWith('http')
+            ? appTarget.devtoolsFrontendUrl
+            : `http://localhost:${metroPort}${appTarget.devtoolsFrontendUrl}`;
+
+          // Open in browser
+          try {
+            execSync(`open "${devToolsUrl}"`, { stdio: 'pipe', timeout: 3000 });
+            console.log(`  ${c.green}✔${c.reset} DevTools opened in browser`);
+            console.log(`  ${c.dim}  ${devToolsUrl}${c.reset}`);
+          } catch {
+            console.log(`  ${c.cyan}→${c.reset} Open DevTools: ${c.dim}${devToolsUrl}${c.reset}`);
+          }
+          return;
+        }
+      } catch {}
+
+      // No connected app found — fall back to Dev Menu
+      openDevMenuForDebugger();
+    });
+  });
+
+  req.on('error', () => openDevMenuForDebugger());
+  req.on('timeout', () => { req.destroy(); openDevMenuForDebugger(); });
+}
+
+/**
+ * Last resort: open Dev Menu on device/simulator so user can tap "Open Debugger".
+ */
+function openDevMenuForDebugger() {
   let anyDone = false;
 
-  // Android: send keyevent 82 (menu key) to open Dev Menu
+  // Android
   try {
     const devices = execSync('adb devices', { encoding: 'utf8', stdio: 'pipe', timeout: 3000 });
     const hasDevice = devices.split('\n').slice(1).some(l => l.includes('\tdevice'));
     if (hasDevice) {
       execSync('adb shell input keyevent 82', { stdio: 'pipe', timeout: 3000 });
-      console.log(`  ${c.green}✔${c.reset} Android: Dev Menu opened — tap "Open Debugger"`);
+      console.log(`  ${c.green}✔${c.reset} Android: Dev Menu opened`);
+      console.log(`  ${c.dim}  Tap "Open Debugger" in the menu${c.reset}`);
       anyDone = true;
     }
   } catch {}
 
-  // iOS: only if Simulator is actually running
+  // iOS — only if Simulator is booted
   try {
     const simRunning = execSync('xcrun simctl list devices booted', { encoding: 'utf8', stdio: 'pipe', timeout: 3000 });
     if (simRunning.includes('Booted')) {
@@ -357,13 +448,15 @@ function openDebugger(ip) {
         `osascript -e 'tell application "Simulator" to activate' -e 'tell application "System Events" to keystroke "d" using command down'`,
         { stdio: 'pipe', timeout: 3000 }
       );
-      console.log(`  ${c.green}✔${c.reset} iOS: Dev Menu opened — tap "Open Debugger"`);
+      console.log(`  ${c.green}✔${c.reset} iOS: Dev Menu opened`);
+      console.log(`  ${c.dim}  Tap "Open Debugger" in the menu${c.reset}`);
       anyDone = true;
     }
   } catch {}
 
   if (!anyDone) {
-    console.log(`  ${c.dim}  No devices found. Android: shake or Cmd+M | iOS: Cmd+D${c.reset}`);
+    console.log(`  ${c.yellow}⚠${c.reset}  No app connected to Metro yet`);
+    console.log(`  ${c.dim}  Launch your app first, then press j${c.reset}`);
   }
 }
 

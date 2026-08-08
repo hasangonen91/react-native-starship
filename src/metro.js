@@ -196,7 +196,9 @@ function startMetro(port) {
       }
 
       // Interactive mode not supported — skip
-      if (trimmed.includes('Interactive mode')) {
+      if (trimmed.includes('Interactive mode') ||
+          trimmed.includes('Launching DevTools') ||
+          trimmed.includes('Open DevTools')) {
         continue;
       }
     }
