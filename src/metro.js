@@ -166,6 +166,18 @@ function startMetro(port) {
 
       // Warning
       if (trimmed.includes('WARN') || trimmed.includes('warn')) {
+        // Filter out noisy Metro warnings that are not actionable
+        if (
+          trimmed.includes('No apps connected') ||
+          trimmed.includes('No compatible apps connected') ||
+          trimmed.includes('React Native DevTools') ||
+          trimmed.includes('Hermes engine') ||
+          trimmed.includes('sendDevCommand') ||
+          trimmed.includes('Sending "reload"') ||
+          trimmed.includes('Make sure your app is running')
+        ) {
+          continue;
+        }
         console.log(`  ${c.yellow}⚠${c.reset}  ${trimmed.replace(/^(WARN|warn)\s*/, '')}`);
         continue;
       }
@@ -196,8 +208,20 @@ function startMetro(port) {
       const trimmed = line.trim();
       if (!trimmed) continue;
 
-      // Skip security middleware noise
-      if (trimmed.includes('Unauthorized request') || trimmed.includes('securityHeaders') || trimmed.includes('connect/index')) {
+      // Skip security middleware noise and non-actionable Metro warnings
+      if (
+        trimmed.includes('Unauthorized request') ||
+        trimmed.includes('securityHeaders') ||
+        trimmed.includes('connect/index') ||
+        trimmed.includes('No apps connected') ||
+        trimmed.includes('No compatible apps connected') ||
+        trimmed.includes('React Native DevTools') ||
+        trimmed.includes('Hermes engine') ||
+        trimmed.includes('sendDevCommand') ||
+        trimmed.includes('Sending "reload"') ||
+        trimmed.includes('Make sure your app is running') ||
+        trimmed.includes('Interactive mode')
+      ) {
         continue;
       }
 

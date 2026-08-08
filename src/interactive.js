@@ -185,8 +185,15 @@ function runOnAndroid(apkPath) {
     console.log(`  ${c.green}✔${c.reset} ${activeDevices.length} device(s) connected`);
   }
 
-  // Reverse ports on all devices
-  adbReverseAllPorts([8081, 8888], devices);
+  // Reverse ports on all devices — senkron, install'dan önce tamamlanmalı
+  const activeDevs = devices.filter(d => d.type !== 'unauthorized');
+  for (const device of activeDevs) {
+    for (const port of [8081, 8888]) {
+      try {
+        execSync(`adb -s ${device.id} reverse tcp:${port} tcp:${port}`, { stdio: 'pipe', timeout: 5000 });
+      } catch {}
+    }
+  }
 
   // Install APK on all devices
   console.log(`  ${c.dim}  Installing APK on ${devices.filter(d => d.type !== 'unauthorized').length} device(s)...${c.reset}`);
@@ -324,39 +331,39 @@ function runOnIosSimulator() {
 }
 
 /**
- * Opens debugger.
+ * Opens debugger / DevTools.
  */
 function openDebugger(ip) {
   console.log(`  ${c.yellow}▶${c.reset} Opening debugger...`);
 
-  let androidDone = false;
-  let iosDone = false;
+  let anyDone = false;
 
-  // Android: send Cmd+M via AppleScript or keyevent
+  // Android: send keyevent 82 (menu key) to open Dev Menu
   try {
-    const devices = execSync('adb devices', { encoding: 'utf8', stdio: 'pipe' });
-    if (devices.includes('\tdevice')) {
-      try {
-        execSync(`osascript -e 'tell application "qemu-system-aarch64" to activate' -e 'tell application "System Events" to keystroke "m" using command down'`, { stdio: 'pipe', timeout: 3000 });
-      } catch {
-        execSync('adb shell input keyevent 82', { stdio: 'pipe', timeout: 3000 });
-      }
-      console.log(`  ${c.green}✔${c.reset} Android: Dev Menu triggered`);
-      androidDone = true;
+    const devices = execSync('adb devices', { encoding: 'utf8', stdio: 'pipe', timeout: 3000 });
+    const hasDevice = devices.split('\n').slice(1).some(l => l.includes('\tdevice'));
+    if (hasDevice) {
+      execSync('adb shell input keyevent 82', { stdio: 'pipe', timeout: 3000 });
+      console.log(`  ${c.green}✔${c.reset} Android: Dev Menu opened — tap "Open Debugger"`);
+      anyDone = true;
     }
   } catch {}
 
-  // iOS: send Cmd+D via AppleScript
+  // iOS: only if Simulator is actually running
   try {
-    execSync(`osascript -e 'tell application "Simulator" to activate' -e 'tell application "System Events" to keystroke "d" using command down'`, { stdio: 'pipe', timeout: 3000 });
-    console.log(`  ${c.green}✔${c.reset} iOS: Dev Menu triggered`);
-    iosDone = true;
+    const simRunning = execSync('xcrun simctl list devices booted', { encoding: 'utf8', stdio: 'pipe', timeout: 3000 });
+    if (simRunning.includes('Booted')) {
+      execSync(
+        `osascript -e 'tell application "Simulator" to activate' -e 'tell application "System Events" to keystroke "d" using command down'`,
+        { stdio: 'pipe', timeout: 3000 }
+      );
+      console.log(`  ${c.green}✔${c.reset} iOS: Dev Menu opened — tap "Open Debugger"`);
+      anyDone = true;
+    }
   } catch {}
 
-  if (androidDone || iosDone) {
-    console.log(`  ${c.dim}  Tap "Open DevTools" in the menu${c.reset}`);
-  } else {
-    console.log(`  ${c.dim}  Android: Cmd+M | iOS: Cmd+D${c.reset}`);
+  if (!anyDone) {
+    console.log(`  ${c.dim}  No devices found. Android: shake or Cmd+M | iOS: Cmd+D${c.reset}`);
   }
 }
 
@@ -370,11 +377,30 @@ function reloadApp(ip) {
     if (res.statusCode === 200) {
       console.log(`  ${c.green}✔${c.reset} Reloaded`);
     } else {
-      console.log(`  ${c.yellow}⚠${c.reset} Reload sent (status ${res.statusCode})`);
+      // Metro returned non-200 — try the message API
+      const req2 = http.request({
+        hostname: 'localhost',
+        port: 8081,
+        path: '/message',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }, (res2) => {
+        console.log(`  ${c.green}✔${c.reset} Reload sent`);
+        res2.resume();
+      });
+      req2.on('error', () => {
+        console.log(`  ${c.yellow}⚠${c.reset} Reload sent (status ${res.statusCode})`);
+      });
+      req2.write(JSON.stringify({ method: 'sendDevCommand', params: { command: 'reload' } }));
+      req2.end();
     }
     res.resume();
   });
   req.on('error', () => {
+    console.log(`  ${c.red}✖${c.reset} Metro not reachable`);
+  });
+  req.setTimeout(3000, () => {
+    req.destroy();
     console.log(`  ${c.red}✖${c.reset} Metro not reachable`);
   });
 }
@@ -384,11 +410,35 @@ function reloadApp(ip) {
  */
 function openDevMenu() {
   console.log(`  ${c.magenta}☰${c.reset} Opening Dev Menu...`);
+
+  let anyDone = false;
+
+  // Android
   try {
-    execSync('adb shell input keyevent 82', { stdio: 'pipe', timeout: 3000 });
-    console.log(`  ${c.green}✔${c.reset} Dev Menu opened`);
-  } catch {
-    console.log(`  ${c.dim}  Shake your device or press Cmd+D in simulator${c.reset}`);
+    const devices = execSync('adb devices', { encoding: 'utf8', stdio: 'pipe', timeout: 3000 });
+    const hasDevice = devices.split('\n').slice(1).some(l => l.includes('\tdevice'));
+    if (hasDevice) {
+      execSync('adb shell input keyevent 82', { stdio: 'pipe', timeout: 3000 });
+      console.log(`  ${c.green}✔${c.reset} Android: Dev Menu opened`);
+      anyDone = true;
+    }
+  } catch {}
+
+  // iOS — only if simulator is booted
+  try {
+    const simRunning = execSync('xcrun simctl list devices booted', { encoding: 'utf8', stdio: 'pipe', timeout: 3000 });
+    if (simRunning.includes('Booted')) {
+      execSync(
+        `osascript -e 'tell application "Simulator" to activate' -e 'tell application "System Events" to keystroke "d" using command down'`,
+        { stdio: 'pipe', timeout: 3000 }
+      );
+      console.log(`  ${c.green}✔${c.reset} iOS: Dev Menu opened`);
+      anyDone = true;
+    }
+  } catch {}
+
+  if (!anyDone) {
+    console.log(`  ${c.dim}  No devices found. Shake your device or press Cmd+D in simulator${c.reset}`);
   }
 }
 
