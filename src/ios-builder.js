@@ -417,6 +417,130 @@ function installOnSimulator(appPath, udid, bundleId) {
   execSync('open -a Simulator', { stdio: 'pipe' });
 }
 
+/**
+ * Lists USB-connected iOS physical devices via `xcrun devicectl`.
+ * Falls back to `instruments -s devices` for older Xcode versions.
+ * @returns {Array<{name: string, udid: string, os: string}>}
+ */
+function listUsbIosDevices() {
+  // Xcode 15+ — devicectl
+  try {
+    const out = execSync('xcrun devicectl list devices --json-output /dev/stdout 2>/dev/null', {
+      encoding: 'utf8', stdio: 'pipe', timeout: 5000,
+    });
+    const data = JSON.parse(out);
+    const devices = (data?.result?.devices || []).filter(d =>
+      d.connectionProperties?.transportType === 'wired' ||
+      d.connectionProperties?.transportType === 'localNetwork'
+    );
+    return devices.map(d => ({
+      name: d.deviceProperties?.name || 'iPhone',
+      udid: d.hardwareProperties?.udid || d.identifier,
+      os: d.deviceProperties?.osVersionNumber || '',
+    }));
+  } catch {}
+
+  // Xcode 14 fallback — instruments
+  try {
+    const out = execSync('instruments -s devices 2>/dev/null', { encoding: 'utf8', stdio: 'pipe', timeout: 5000 });
+    const lines = out.split('\n').filter(l => l.includes('iPhone') || l.includes('iPad'));
+    return lines.map(line => {
+      const match = line.match(/^(.+?)\s+\(([\d.]+)\)\s+\[([A-Fa-f0-9-]+)\]/);
+      if (!match) return null;
+      return { name: match[1].trim(), udid: match[3], os: match[2] };
+    }).filter(Boolean);
+  } catch {}
+
+  return [];
+}
+
+/**
+ * Builds and installs the app on a USB-connected physical iOS device.
+ * Uses xcodebuild with the device UDID as destination.
+ * @param {Object} options
+ * @param {string} options.bundlerHost - Metro host IP
+ * @param {string} options.udid - Device UDID
+ * @param {string} options.deviceName - Device name for display
+ * @returns {Promise<void>}
+ */
+async function buildIosDevice({ bundlerHost, udid, deviceName }) {
+  const iosDir = path.resolve('ios');
+  const workspace = findXcworkspace();
+  const scheme = getScheme();
+  const derivedData = path.resolve('ios', 'build-device');
+  const cpus = require('os').cpus().length;
+  const ccacheEnv = getCcacheEnv();
+
+  enableCcacheInPodfile();
+
+  return new Promise((resolve, reject) => {
+    const args = [
+      '-workspace', path.join(iosDir, workspace),
+      '-scheme', scheme,
+      '-configuration', 'Debug',
+      '-destination', `platform=iOS,id=${udid}`,
+      '-derivedDataPath', derivedData,
+      '-jobs', String(cpus),
+      '-quiet',
+      'build',
+    ];
+
+    const child = spawn('xcodebuild', args, {
+      stdio: 'pipe',
+      env: {
+        ...process.env,
+        ...ccacheEnv,
+        RCT_METRO_HOST: bundlerHost,
+        RCT_METRO_PORT: '8081',
+        COMPILER_INDEX_STORE_ENABLE: 'NO',
+        DEBUG_INFORMATION_FORMAT: 'dwarf',
+        SWIFT_COMPILATION_MODE: 'incremental',
+      },
+    });
+
+    const spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    let spinnerIdx = 0;
+    let lastStep = 'Building';
+
+    child.stdout.on('data', (data) => {
+      const lines = data.toString().split('\n');
+      for (const line of lines) {
+        const phaseMatch = line.match(/^(Compile|Link|Copy|Process|Sign|Build|Merge|Generate)\w*/);
+        if (phaseMatch) {
+          lastStep = phaseMatch[0];
+          process.stdout.write(`\r  ${spinner[spinnerIdx++ % spinner.length]}  ${lastStep.substring(0, 48).padEnd(48)}`);
+        }
+      }
+    });
+
+    let errorOutput = '';
+    child.stderr.on('data', d => { errorOutput += d.toString(); });
+
+    const spinnerTimer = setInterval(() => {
+      process.stdout.write(`\r  ${spinner[spinnerIdx++ % spinner.length]}  ${lastStep.substring(0, 48).padEnd(48)}`);
+    }, 100);
+
+    child.on('error', (err) => {
+      clearInterval(spinnerTimer);
+      process.stdout.write('\r' + ' '.repeat(60) + '\r');
+      reject(new Error(`Failed to start xcodebuild: ${err.message}`));
+    });
+
+    child.on('close', (code) => {
+      clearInterval(spinnerTimer);
+      process.stdout.write('\r' + ' '.repeat(60) + '\r');
+      if (code !== 0) {
+        const errorLines = errorOutput.split('\n')
+          .filter(l => l.includes('error:') || l.includes('Error:'))
+          .slice(-5).join('\n');
+        reject(new Error(`Xcode build failed (exit ${code}):\n${errorLines || 'Check Xcode for details'}`));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
 module.exports = {
   validateIosProject,
   findXcworkspace,
@@ -430,4 +554,6 @@ module.exports = {
   saveIosCache,
   computeIosSourceHash,
   enableCcacheInPodfile,
+  listUsbIosDevices,
+  buildIosDevice,
 };

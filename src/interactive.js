@@ -20,6 +20,7 @@ const c = {
 const COMMANDS = [
   { key: 'a', label: 'Run on Android (all devices)' },
   { key: 'i', label: 'Run on iOS simulator' },
+  { key: 'p', label: 'Run on iOS physical device (USB)' },
   { key: 'j', label: 'Open debugger' },
   { key: 'r', label: 'Reload app' },
   { key: 'd', label: 'Open Dev Menu' },
@@ -57,6 +58,9 @@ function startInteractive(opts) {
         break;
       case 'i':
         runOnIosSimulator();
+        break;
+      case 'p':
+        runOnIosDevice(opts.ip);
         break;
       case 'j':
         openDebugger(opts.ip);
@@ -239,6 +243,40 @@ function waitForBoot() {
     } catch {}
     execSync('sleep 1', { stdio: 'pipe' });
   }
+}
+
+/**
+ * Builds and installs on a USB-connected physical iPhone.
+ */
+function runOnIosDevice(ip) {
+  console.log(`  ${c.yellow}\u25b6${c.reset} Running on iOS physical device...`);
+
+  const { listUsbIosDevices, buildIosDevice, validateIosProject } = require('./ios-builder');
+
+  try {
+    validateIosProject();
+  } catch (err) {
+    console.log(`  ${c.red}\u2716${c.reset} ${err.message.split('\n')[0]}`);
+    return;
+  }
+
+  const devices = listUsbIosDevices();
+  if (devices.length === 0) {
+    console.log(`  ${c.red}\u2716${c.reset} No USB iPhone found. Connect via USB and trust this computer.`);
+    return;
+  }
+
+  const device = devices[0];
+  console.log(`  ${c.dim}  Building for ${device.name} (iOS ${device.os})...${c.reset}`);
+
+  buildIosDevice({ bundlerHost: ip, udid: device.udid, deviceName: device.name })
+    .then(() => {
+      console.log(`  ${c.green}\u2714${c.reset} Installed on ${device.name}`);
+      console.log(`  ${c.dim}  Unplug USB \u2014 Fast Refresh works over WiFi.${c.reset}`);
+    })
+    .catch((err) => {
+      console.log(`  ${c.red}\u2716${c.reset} Build failed: ${err.message.split('\n')[0]}`);
+    });
 }
 
 /**

@@ -26,12 +26,13 @@ If you use **bare React Native CLI** (custom native modules, specific SDKs, brow
 | Wireless install (QR) | ✅ | ❌ | ✅ |
 | Fast Refresh | ✅ | ✅ | ✅ |
 | Zero config | ✅ | ❌ | ✅ |
-| No USB cable needed | ✅ | ❌ | ✅ |
+| No USB cable needed | ✅ | ❌ | ✅ (Android) |
 | Auto Metro connection | ✅ | ❌ | ✅ |
 | Multi-device deploy | ❌ | ❌ | ✅ |
 | Build caching | ❌ | ❌ | ✅ |
 | Device info in terminal | ❌ | ❌ | ✅ |
 | Works with any native code | ❌ | ✅ | ✅ |
+| iOS physical device (USB once) | ❌ | ❌ | ✅ |
 
 **TL;DR:** Expo Go convenience + bare RN CLI power = Starship.
 
@@ -67,7 +68,42 @@ That's it. One command:
 3. Phone scans → installs → runs
 4. Fast Refresh over WiFi
 
-## Build Commands (NEW in v1.2)
+## iOS Physical Device — NEW in v1.5.2
+
+> **TL;DR:** Connect iPhone via USB once → `starship --ios-device` → unplug → Fast Refresh over WiFi forever.
+
+Apple does **not** allow wireless app installation without prior trust. This is a hardware-level restriction — no tool can bypass it. But Starship makes the one-time USB step as painless as possible.
+
+```bash
+starship --ios-device
+```
+
+**What happens:**
+1. Detects your USB-connected iPhone automatically
+2. Builds with `xcodebuild` directly to your device (free Apple account is enough — no $99/year needed)
+3. Installs and launches the app
+4. **You can now unplug the USB cable** — Fast Refresh continues over WiFi
+
+**Requirements:**
+- Mac with Xcode installed
+- iPhone connected via USB
+- iPhone trusted this computer (tap "Trust" on first connect)
+- Free Apple ID (no paid developer account needed for debug builds)
+
+**Or press `p` while starship is running** to deploy to a connected iPhone at any time.
+
+> **Why USB at all?** Apple enforces this at the hardware level — iOS will not install an app from an unknown source without a prior trust handshake over USB. Once trusted, the cable is never needed again for that Mac/iPhone pair.
+
+### Comparison
+
+| Method | First install | After that |
+|--------|--------------|------------|
+| `starship --ios-device` | USB once | WiFi forever ✅ |
+| TestFlight | $99/year + Apple review | WiFi ✅ |
+| Expo Go | No custom native code | WiFi ✅ |
+| RN CLI | USB every time | USB every time ❌ |
+
+## Build Commands
 
 ```bash
 starship build apk                # Debug APK
@@ -110,17 +146,12 @@ starship devices                  # List connected devices
 
 ### iOS (physical device)
 
-Apple does **not** allow wireless app installation without a developer account. This is a hardware-level restriction — no tool can bypass it.
+1. Connect iPhone via USB
+2. Run `starship --ios-device`
+3. Starship detects device, builds, installs
+4. Unplug USB — Fast Refresh works over WiFi from now on
 
-| Method | Requirement | Wireless after setup? |
-|--------|-------------|----------------------|
-| Simulator | Xcode (free) | N/A |
-| USB + Xcode | Apple Developer (free, 7-day cert) | ✅ |
-| TestFlight | Apple Developer ($99/year) | ✅ |
-
-**Workaround:** Connect iPhone via USB once, install with Xcode, disconnect — Fast Refresh works over WiFi from then on.
-
-## Cloud iOS Build (No Mac Needed) — NEW in v1.3
+## Cloud iOS Build (No Mac Needed)
 
 Build and deploy iOS apps from **Windows or Linux**. No Mac required.
 
@@ -170,6 +201,7 @@ Starship detects ccache automatically. No extra config needed — just install i
 |-----|--------|
 | `a` | Install APK on all connected Android devices |
 | `i` | Build and launch on iOS simulator |
+| `p` | Build and install on USB-connected iPhone |
 | `r` | Reload app |
 | `d` | Open Dev Menu |
 | `l` | List all connected devices (USB + WiFi) |
@@ -179,6 +211,7 @@ Starship detects ccache automatically. No extra config needed — just install i
 
 ```bash
 starship                        # default
+starship --ios-device           # build & install on USB iPhone, then WiFi Fast Refresh
 starship --port 8082            # custom Metro port
 starship --watch                # auto-rebuild on native changes
 starship --no-cache             # force fresh build
@@ -192,6 +225,7 @@ starship --server-port 9999     # custom HTTP server port
 - **Auto Metro connection** — no manual IP setup on phone
 - **APK cache** — instant restart if native code unchanged
 - **Multi-device** — deploy to all connected devices at once
+- **iOS physical device** — USB once, WiFi forever
 - **Device identification** — model + OS shown in terminal
 - **Build time tracking** — duration comparison with previous builds
 - **Watch mode** — auto-rebuild on .java/.kt/.xml changes
@@ -222,6 +256,12 @@ starship
 ├── Show QR code → phone scans → installs → auto-connects
 ├── Start Metro (--host 0.0.0.0)
 └── Fast Refresh over WiFi — edit and see changes instantly
+
+starship --ios-device
+├── Detect USB iPhone (xcrun devicectl / instruments)
+├── Build with xcodebuild → device destination
+├── Install + launch on device
+└── Unplug USB → Fast Refresh over WiFi continues
 ```
 
 ## License

@@ -351,6 +351,37 @@ async function run(options) {
     console.log('');
   }
 
+  // --- iOS Physical Device ---
+  if (options.iosDevice && hasIos) {
+    const { validateIosProject, listUsbIosDevices, buildIosDevice } = require('./ios-builder');
+    stepNum++;
+    ui.step(stepNum, 'Scanning USB iOS devices...');
+    try {
+      validateIosProject();
+      const usbDevices = listUsbIosDevices();
+      if (usbDevices.length === 0) {
+        ui.warn('No USB iPhone found. Connect your iPhone via USB and trust this computer.');
+      } else {
+        const device = usbDevices[0];
+        ui.success(`Found: ${device.name} (iOS ${device.os})`);
+        stepNum++;
+        ui.step(stepNum, `Building for ${device.name}...`);
+        const timer = createBuildTimer('ios-device');
+        timer.start();
+        await buildIosDevice({ bundlerHost: ip, udid: device.udid, deviceName: device.name });
+        timer.stop();
+        ui.success(`Built and installed on ${device.name} in ${timer.formatted()}`);
+        console.log('');
+        console.log(`  ${ui.c.bold}${ui.c.green}📱 Running on ${device.name}!${ui.c.reset}`);
+        console.log(`  ${ui.c.dim}You can now unplug USB — Fast Refresh works over WiFi.${ui.c.reset}`);
+        console.log(`  ${ui.c.dim}Metro: ${ip}:${metroPort}${ui.c.reset}`);
+        console.log('');
+      }
+    } catch (err) {
+      ui.warn(`iOS device build failed: ${err.message.split('\n')[0]}`);
+    }
+  }
+
   metro.on('exit', (code) => {
     if (code !== null && code !== 0) {
       ui.error('Metro crashed', `Exit code ${code}`);

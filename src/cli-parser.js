@@ -62,6 +62,9 @@ function parseArgs(argv) {
       case '-i':
         options.ios = true;
         break;
+      case '--ios-device':
+        options.iosDevice = true;
+        break;
       case '--no-cache':
         options.noCache = true;
         break;
