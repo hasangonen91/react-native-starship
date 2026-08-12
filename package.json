@@ -1,6 +1,6 @@
 {
   "name": "react-native-starship",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Launch your React Native app to any device over WiFi. No cables, no Expo — just scan and fly.",
   "main": "src/index.js",
   "bin": {
@@ -51,6 +51,14 @@
   "license": "MIT",
   "dependencies": {
     "qrcode-terminal": "^0.12.0"
+  },
+  "peerDependencies": {
+    "react-native": "*"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "fast-check": "^3.15.0"

@@ -38,17 +38,27 @@ If you use **bare React Native CLI** (custom native modules, specific SDKs, brow
 ## Installation
 
 ```bash
-yarn add react-native-starship
+npm install -g react-native-starship
 # or
-npm install react-native-starship
+yarn global add react-native-starship
 ```
 
-Auto-registers as a React Native CLI plugin. Zero config needed.
+Then just run from anywhere inside your RN project:
+
+```bash
+starship
+```
+
+**Or without installing (one-off):**
+
+```bash
+npx react-native-starship
+```
 
 ## Usage
 
 ```bash
-npx react-native starship
+starship
 ```
 
 That's it. One command:
@@ -154,7 +164,7 @@ brew install ccache
 
 Starship detects ccache automatically. No extra config needed — just install it and your next iOS build will populate the cache. From then on, clean builds that were taking 10+ minutes can drop to under a minute.
 
-
+## Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|
@@ -204,7 +214,7 @@ Development-only tool. Safety measures:
 ## How it works
 
 ```
-npx react-native starship
+starship
 ├── Detect WiFi IP + connected devices
 ├── Auto adb reverse on all devices
 ├── Build APK (with IP embedded via ContentProvider)
