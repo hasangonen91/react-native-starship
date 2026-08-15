@@ -115,11 +115,15 @@ async function buildApk({ bundlerHost, metroPort, serverPort }) {
 
   const androidDir = path.resolve('android');
 
-  // Build args: single ABI if detected, otherwise full build
-  const gradleArgs = ['assembleDebug', '--console=plain', '-q'];
-  if (targetAbi) {
-    gradleArgs.push(`-PreactNativeArchitectures=${targetAbi}`);
-  }
+// Build args: single ABI if detected, otherwise default to arm64-v8a
+// (instead of building all 4 ABIs). Most modern devices are arm64 — this
+// cuts build time by ~75%.
+const gradleArgs = ['assembleDebug', '--console=plain', '-q'];
+const abi = targetAbi || 'arm64-v8a';
+gradleArgs.push(`-PreactNativeArchitectures=${abi}`);
+if (!targetAbi) {
+  console.log('  ⚡ No device detected — building arm64-v8a only (fast mode)');
+}
 
   return new Promise((resolve, reject) => {
     const child = spawn('./gradlew', gradleArgs, {

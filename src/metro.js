@@ -1,6 +1,8 @@
 'use strict';
 
 const { spawn } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 const { getLastDevice, formatDevice } = require('./device-tracker');
 
 const c = {
@@ -28,9 +30,29 @@ const c = {
  * @param {number} [port=8081] - Metro port
  * @returns {import('child_process').ChildProcess} The Metro child process
  */
-function startMetro(port) {
+async function startMetro(port) {
   const metroPort = port || 8081;
-  const child = spawn('npx', ['react-native', 'start', '--host', '0.0.0.0', '--port', String(metroPort)], {
+
+  // If Metro is already running on the port, reuse it instead of starting a
+  // second instance (instant "plug & play" — no waiting for a fresh bundler).
+  if (await isMetroRunning(metroPort)) {
+    console.log(`  ${c.green}✔${c.reset}  Metro already running on port ${metroPort} — reusing`);
+    const noop = () => {};
+    return {
+      on: noop,
+      kill: noop,
+      stdout: { on: noop },
+      stderr: { on: noop },
+      exitCode: null,
+    };
+  }
+
+  // Prefer local react-native CLI — instant startup, no npx download prompt ever.
+  const localCli = path.resolve('node_modules', '.bin', 'react-native');
+  const cmd = fs.existsSync(localCli) ? localCli : 'npx';
+  const args = cmd === 'npx' ? ['react-native', 'start', '--host', '0.0.0.0', '--port', String(metroPort)]
+                             : ['start', '--host', '0.0.0.0', '--port', String(metroPort)];
+  const child = spawn(cmd, args, {
     stdio: 'pipe',
   });
 
@@ -240,6 +262,24 @@ function startMetro(port) {
   });
 
   return child;
+}
+
+/**
+ * Checks if a Metro dev server is already listening on the given port.
+ * Uses only built-in node — no extra dependencies.
+ * @param {number} port - Port to check
+ * @returns {Promise<boolean>}
+ */
+function isMetroRunning(port) {
+  const net = require('net');
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(1500);
+    socket.once('connect', () => { socket.destroy(); resolve(true); });
+    socket.once('timeout', () => { socket.destroy(); resolve(false); });
+    socket.once('error', () => resolve(false));
+    socket.connect(port, '127.0.0.1');
+  });
 }
 
 module.exports = { startMetro };

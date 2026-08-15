@@ -77,7 +77,7 @@ function startWatchMode(options) {
 
 /**
  * Main entry — auto-detects platforms and builds both if available.
- * Single command: `npx react-native starship`
+ * Single command: `starship`
  *
  * @param {Object} options
  * @param {boolean} options.watch - Watch mode
@@ -300,7 +300,7 @@ async function run(options) {
 
   // Start Metro early — in parallel with install tasks below
   ui.metroStart();
-  const metro = startMetro(metroPort);
+  const metro = await startMetro(metroPort);
   shutdown.metroProcess = metro;
 
   // Multi-device APK install — run async, QR is already visible

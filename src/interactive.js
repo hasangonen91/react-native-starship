@@ -1,6 +1,8 @@
 'use strict';
 
 const { execSync, spawn } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 const readline = require('readline');
 const { listConnectedDevices, displayDevices, adbReverseAllPorts, installOnAllDevices } = require('./device-manager');
 
@@ -331,7 +333,11 @@ function runOnIosSimulator() {
   // Build and install using react-native run-ios
   console.log(`  ${c.dim}  Building and installing...${c.reset}`);
   try {
-    const child = spawn('npx', ['react-native', 'run-ios', '--no-packager'], {
+    const localCli = path.resolve('node_modules', '.bin', 'react-native');
+    const cmd = fs.existsSync(localCli) ? localCli : 'npx';
+    const args = cmd === 'npx' ? ['react-native', 'run-ios', '--no-packager']
+                               : ['run-ios', '--no-packager'];
+    const child = spawn(cmd, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
